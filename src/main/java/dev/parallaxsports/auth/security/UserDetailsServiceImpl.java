@@ -1,4 +1,4 @@
-package dev.parallaxsports.auth;
+package dev.parallaxsports.auth.security;
 
 public class UserDetailsServiceImpl {
 }

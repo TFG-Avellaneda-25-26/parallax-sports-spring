@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: parallax-sports-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://192.168.1.23:5432/postgres}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
+    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:3600}
+    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}
+  discord:
+    bot-token: ${DISCORD_BOT_TOKEN:dev-discord-token}
+  external-api:
+    apifootball-api-key: ${APIFOOTBALL_API_KEY}
+    pandascore-api-key: ${PANDASCORE_API_KEY}
+
+observability:
+  loki-url: ${LOKI_URL:http://192.168.1.22:3100}
+  prometheus-url: ${PROMETHEUS_URL:http://192.168.1.21:9090}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
