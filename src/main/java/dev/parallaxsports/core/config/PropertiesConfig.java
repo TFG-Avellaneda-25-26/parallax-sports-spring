@@ -5,7 +5,6 @@ import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
 import dev.parallaxsports.core.config.properties.JwtProperties;
 import dev.parallaxsports.core.config.properties.RedisProperties;
-import dev.parallaxsports.core.config.properties.TelegramProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,7 +12,6 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties({
     JwtProperties.class,
     DiscordProperties.class,
-    TelegramProperties.class,
     ExternalApiProperties.class,
     ExternalSyncProperties.class,
     RedisProperties.class
