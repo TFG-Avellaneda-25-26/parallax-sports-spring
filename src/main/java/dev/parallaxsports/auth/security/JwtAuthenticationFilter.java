@@ -29,6 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 		throws ServletException, IOException {
 
+		String requestContext = currentRequestContext(request);
+
 		String authorization = request.getHeader("Authorization");
 		// No Bearer token -> leave request unauthenticated and let authorization rules decide.
 		if (authorization == null || !authorization.startsWith("Bearer ")) {
@@ -58,13 +60,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				);
 				authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 				SecurityContextHolder.getContext().setAuthentication(authentication);
-				log.debug("Authenticated request '{}' as '{}'", request.getRequestURI(), subject);
+				log.debug("Authenticated request as subject='{}' {}", subject, requestContext);
 			}
 		} catch (JwtException | IllegalArgumentException ex) {
 			// Invalid token: continue without authentication and let security rules decide.
-			log.debug("JWT validation failed for request '{}': {}", request.getRequestURI(), ex.getMessage());
+			log.warn("JWT validation failed: {} {}", ex.getMessage(), requestContext);
 		}
 
 		filterChain.doFilter(request, response);
+	}
+
+	private String currentRequestContext(HttpServletRequest request) {
+		if (request == null) {
+			return "uri=unknown ip=unknown";
+		}
+		String uri = request.getRequestURI() == null ? "unknown" : request.getRequestURI();
+		String ip = request.getRemoteAddr() == null ? "unknown" : request.getRemoteAddr();
+		return "uri='" + uri + "' ip='" + ip + "'";
 	}
 }

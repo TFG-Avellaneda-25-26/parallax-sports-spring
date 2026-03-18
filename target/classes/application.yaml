@@ -14,13 +14,20 @@ spring:
 app:
   jwt:
     secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
-    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:3600}
-    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}
+    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:120}
+    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:600}
   discord:
     bot-token: ${DISCORD_BOT_TOKEN:dev-discord-token}
   external-api:
+    openf1-base-url: ${OPENF1_BASE_URL:https://api.openf1.org/v1}
     apifootball-api-key: ${APIFOOTBALL_API_KEY}
     pandascore-api-key: ${PANDASCORE_API_KEY}
+  external-sync:
+    enabled: ${EXTERNAL_SYNC_ENABLED:true}
+    zone-id: ${EXTERNAL_SYNC_ZONE_ID:UTC}
+    daily-cron: ${EXTERNAL_SYNC_DAILY_CRON:0 30 0 * * *}
+    years-back: ${EXTERNAL_SYNC_YEARS_BACK:0}
+    years-forward: ${EXTERNAL_SYNC_YEARS_FORWARD:1}
 
 observability:
   loki-url: ${LOKI_URL:http://localhost:3100}

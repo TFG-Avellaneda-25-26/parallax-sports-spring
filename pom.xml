@@ -29,7 +29,6 @@
     </scm>
     <properties>
         <java.version>21</java.version>
-        <jackson.version>2.18.2</jackson.version>
     </properties>
     <dependencies>
         <dependency>
@@ -109,18 +108,7 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -146,7 +134,6 @@
     <version>2.0.3</version>
     <scope>compile</scope>
 </dependency>
-   
     </dependencies>
 
     <build>

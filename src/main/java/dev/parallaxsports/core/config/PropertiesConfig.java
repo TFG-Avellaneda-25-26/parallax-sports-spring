@@ -2,6 +2,7 @@ package dev.parallaxsports.core.config;
 
 import dev.parallaxsports.core.config.properties.DiscordProperties;
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
+import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
 import dev.parallaxsports.core.config.properties.JwtProperties;
 import dev.parallaxsports.core.config.properties.RedisProperties;
 import dev.parallaxsports.core.config.properties.TelegramProperties;
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
     DiscordProperties.class,
     TelegramProperties.class,
     ExternalApiProperties.class,
+    ExternalSyncProperties.class,
     RedisProperties.class
 })
 public class PropertiesConfig {

@@ -7,6 +7,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import lombok.RequiredArgsConstructor;
@@ -70,10 +71,20 @@ public class JwtTokenProvider {
         // Parse once, then validate identity + type + expiry.
         String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
         Date expiration = claims.getExpiration();
-        return claims.getSubject().equals(userDetails.getUsername())
+        boolean valid = claims.getSubject().equals(userDetails.getUsername())
             && expectedType.equals(tokenType)
             && expiration != null
             && expiration.after(new Date());
+        if (!valid) {
+            log.warn(
+                "JWT rejected subject='{}' expectedType='{}' actualType='{}' expiration='{}'",
+                claims.getSubject(),
+                expectedType,
+                tokenType,
+                expiration
+            );
+        }
+        return valid;
     }
 
     public Claims parseClaims(String token) {
@@ -89,7 +100,7 @@ public class JwtTokenProvider {
         Date expiresAt = new Date(issuedAt.getTime() + ttlSeconds * 1000);
 
         // Subject=email aligns with login identifier and UserDetailsService lookup.
-        return Jwts.builder()
+        String token = Jwts.builder()
             .subject(user.getEmail())
             .claim(TOKEN_TYPE_CLAIM, tokenType)
             .claim(ROLE_CLAIM, user.getRole().name())
@@ -97,5 +108,14 @@ public class JwtTokenProvider {
             .expiration(expiresAt)
             .signWith(signingKey, Jwts.SIG.HS256)
             .compact();
+
+        log.info(
+            "JWT issued type='{}' subject='{}' ttlSeconds={} expiresAt='{}'",
+            tokenType,
+            user.getEmail(),
+            ttlSeconds,
+            Instant.ofEpochMilli(expiresAt.getTime())
+        );
+        return token;
     }
 }

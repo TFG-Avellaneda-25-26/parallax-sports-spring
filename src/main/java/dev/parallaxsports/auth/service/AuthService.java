@@ -12,6 +12,7 @@ import dev.parallaxsports.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import java.time.OffsetDateTime;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,6 +20,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Service
 @RequiredArgsConstructor
@@ -80,13 +83,21 @@ public class AuthService {
 	public AuthResponse refresh(RefreshTokenRequest request) {
 		// TODO: persist/rotate refresh token identifiers (e.g., jti hash) for revocation support.
 		String refreshToken = request.refreshToken();
+		String requestContext = currentRequestContext();
 		String subject;
 		Claims claims;
 		try {
 			// Parse token first; invalid/expired/forged tokens map to 401.
 			claims = jwtTokenProvider.parseClaims(refreshToken);
 			subject = claims.getSubject();
+			log.info(
+				"Refresh attempt accepted for parsing subject='{}' expiresAt='{}' {}",
+				subject,
+				claims.getExpiration(),
+				requestContext
+			);
 		} catch (JwtException | IllegalArgumentException ex) {
+			log.warn("Refresh token parse failed: {} {}", ex.getMessage(), requestContext);
 			throw new UnauthorizedException("Invalid refresh token");
 		}
 
@@ -101,16 +112,28 @@ public class AuthService {
 				.build();
 
 		if (!jwtTokenProvider.isTokenValid(claims, userDetails, "refresh")) {
+			log.warn("Refresh token rejected by validation subject='{}' {}", subject, requestContext);
 			throw new UnauthorizedException("Invalid refresh token");
 		}
 
 		// Rotate by issuing a new access token and a new refresh token.
-		log.debug("Refresh token accepted for '{}'", user.getEmail());
+		log.info("Refresh token accepted and rotating tokens for subject='{}' {}", user.getEmail(), requestContext);
 		return new AuthResponse(
 			user.getId(),
 			jwtTokenProvider.issueAccessToken(user),
 			jwtTokenProvider.issueRefreshToken(user)
 		);
+	}
+
+	private String currentRequestContext() {
+		ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		if (attrs == null) {
+			return "uri=unknown ip=unknown";
+		}
+		HttpServletRequest req = attrs.getRequest();
+		String uri = req == null ? "unknown" : req.getRequestURI();
+		String ip = req == null ? "unknown" : req.getRemoteAddr();
+		return "uri='" + uri + "' ip='" + ip + "'";
 	}
 
 }
