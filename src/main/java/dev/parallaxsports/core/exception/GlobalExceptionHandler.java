@@ -44,6 +44,10 @@ public class GlobalExceptionHandler {
     /*============================================================
       DOMAIN EXCEPTIONS
       Business-level errors related to resource state and rules
+      
+      Links: 
+        - https://stackoverflow.com/questions/75527032/responsebodyadvice-beforebodywrite-method-serverhttpresponse-has-null-status-and
+        - https://www.baeldung.com/spring-boot-return-errors-problemdetail
     ============================================================*/
 
     // -> Triggers: requested resource does not exist || Returns: Not Found (404)
