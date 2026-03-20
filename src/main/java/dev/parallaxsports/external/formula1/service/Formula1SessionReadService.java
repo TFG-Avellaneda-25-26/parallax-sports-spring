@@ -85,10 +85,12 @@ class Formula1SessionReadService {
     private Formula1SessionResponse toSessionResponse(Event event, Map<Long, String> latestVenueLogos) {
         Venue venue = event.getVenue();
         String logo = venue == null || venue.getId() == null ? null : latestVenueLogos.get(venue.getId());
+        Event parentMeeting = event.getParentEvent();
 
         return new Formula1SessionResponse(
             event.getId(),
             venue == null ? null : venue.getName(),
+            parentMeeting == null ? null : parentMeeting.getName(),
             logo,
             event.getStartTimeUtc(),
             event.getEndTimeUtc(),

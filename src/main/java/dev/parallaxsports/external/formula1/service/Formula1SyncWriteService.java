@@ -19,6 +19,7 @@ import dev.parallaxsports.formula1.repository.SportRepository;
 import dev.parallaxsports.formula1.repository.VenueRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,12 @@ class Formula1SyncWriteService {
     private final MediaAssetRepository mediaAssetRepository;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Synchronizes a Formula 1 season and returns counters plus processed session event ids.
+     *
+     * <p>The returned ids represent session events seen during this sync run (created or updated)
+     * and are used by the caller to generate alerts only for the affected sessions.</p>
+     */
     SyncCounters syncSeason(int year, List<OpenF1MeetingDto> meetings, List<OpenF1SessionDto> sessions) {
         Sport sport = ensureSport();
         Competition competition = ensureCompetition(sport);
@@ -57,6 +64,7 @@ class Formula1SyncWriteService {
         int venuesUpserted = 0;
         int meetingsUpserted = 0;
         int sessionsUpserted = 0;
+        List<Long> processedSessionEventIds = new ArrayList<>();
 
         for (OpenF1MeetingDto meeting : meetings) {
             if (meeting.meetingKey() == null || meeting.dateStart() == null) {
@@ -87,9 +95,12 @@ class Formula1SyncWriteService {
             if (sessionResult.created()) {
                 sessionsUpserted++;
             }
+            if (sessionResult.event().getId() != null) {
+                processedSessionEventIds.add(sessionResult.event().getId());
+            }
         }
 
-        return new SyncCounters(venuesUpserted, meetingsUpserted, sessionsUpserted);
+        return new SyncCounters(venuesUpserted, meetingsUpserted, sessionsUpserted, processedSessionEventIds);
     }
 
     private Sport ensureSport() {
@@ -520,7 +531,7 @@ class Formula1SyncWriteService {
         return null;
     }
 
-    record SyncCounters(int venuesUpserted, int meetingsUpserted, int sessionsUpserted) {
+    record SyncCounters(int venuesUpserted, int meetingsUpserted, int sessionsUpserted, List<Long> processedSessionEventIds) {
     }
 
     private record UpsertVenueResult(Venue venue, boolean created) {

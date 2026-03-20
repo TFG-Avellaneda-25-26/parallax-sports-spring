@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get Sessions by Year
+method: GET
+url: '{{baseUrl}}/api/formula1/sessions/:year'
+order: 1000
+pathVariables:
+  - key: year
+    value: '2024'
+    description: Year for F1 sessions (e.g., 2024)
