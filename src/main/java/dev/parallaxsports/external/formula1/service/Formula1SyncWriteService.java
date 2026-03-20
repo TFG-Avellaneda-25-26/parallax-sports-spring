@@ -48,13 +48,28 @@ class Formula1SyncWriteService {
     private final MediaAssetRepository mediaAssetRepository;
     private final ObjectMapper objectMapper;
 
+
     /**
      * Synchronizes a Formula 1 season and returns counters plus processed session event ids.
      *
      * <p>The returned ids represent session events seen during this sync run (created or updated)
      * and are used by the caller to generate alerts only for the affected sessions.</p>
      */
-    SyncCounters syncSeason(int year, List<OpenF1MeetingDto> meetings, List<OpenF1SessionDto> sessions) {
+        /*============================================================
+            OPENF1 TO DATABASE SYNC (ONE SEASON)
+            Upsert reference data plus meeting/session events
+        ============================================================*/
+
+        /**
+         * Synchronizes meetings and sessions for a season year into normalized domain entities.
+         *
+         * @param year target season year
+         * @param meetings provider meetings used for venues and meeting events
+         * @param sessions provider sessions used for child events under meetings
+         * @return counters with number of created venues, meetings, and sessions
+         */
+
+  SyncCounters syncSeason(int year, List<OpenF1MeetingDto> meetings, List<OpenF1SessionDto> sessions) {
         Sport sport = ensureSport();
         Competition competition = ensureCompetition(sport);
         Season season = ensureSeason(competition, year, meetings);
@@ -103,12 +118,28 @@ class Formula1SyncWriteService {
         return new SyncCounters(venuesUpserted, meetingsUpserted, sessionsUpserted, processedSessionEventIds);
     }
 
+        /*============================================================
+            ENSURE MASTER DATA ROWS
+            Resolve or create sport, competition, and season
+        ============================================================*/
+
+    /**
+     * Resolves the Formula 1 sport row, creating it on first sync.
+     *
+     * @return persistent sport entity keyed as formula1
+     */
     private Sport ensureSport() {
         return sportRepository.findByKey(FORMULA1_KEY).orElseGet(() ->
             sportRepository.save(Sport.builder().key(FORMULA1_KEY).name(FORMULA1_NAME).build())
         );
     }
 
+    /**
+     * Resolves the Formula 1 world championship competition, creating it if absent.
+     *
+     * @param sport owning sport entity
+     * @return persistent competition entity used as parent for synced seasons and events
+     */
     private Competition ensureCompetition(Sport sport) {
         return competitionRepository.findBySportIdAndName(sport.getId(), F1_COMPETITION_NAME).orElseGet(() ->
             competitionRepository.save(
@@ -124,6 +155,14 @@ class Formula1SyncWriteService {
         );
     }
 
+    /**
+     * Resolves the season row for the target year and aligns season date bounds from meeting data.
+     *
+     * @param competition parent competition for the season
+     * @param year season year
+     * @param meetings source meetings used to derive min start and max end dates
+     * @return existing or newly persisted season entity
+     */
     private Season ensureSeason(Competition competition, int year, List<OpenF1MeetingDto> meetings) {
         Season season = seasonRepository.findByCompetitionIdAndName(competition.getId(), String.valueOf(year)).orElse(null);
         boolean created = false;
@@ -162,6 +201,18 @@ class Formula1SyncWriteService {
         return seasonRepository.save(season);
     }
 
+        /*============================================================
+            MEETING UPSERT FLOW
+            Upsert venues, meeting events, and parent references
+        ============================================================*/
+
+        /**
+         * Upserts a circuit venue from meeting data and updates mutable venue fields.
+         *
+         * @param sport owning sport entity
+         * @param meeting source meeting payload
+         * @return venue and creation flag indicating whether a new row was inserted
+         */
     private UpsertVenueResult upsertVenue(Sport sport, OpenF1MeetingDto meeting) {
         String venueName = nullSafe(meeting.circuitShortName(), "Unknown Circuit");
         String city = nullSafe(meeting.location(), venueName);
@@ -193,6 +244,16 @@ class Formula1SyncWriteService {
         return new UpsertVenueResult(venueRepository.save(venue), created);
     }
 
+    /**
+     * Upserts the meeting-level event associated with a provider meeting key.
+     *
+     * @param sport owning sport entity
+     * @param competition parent competition
+     * @param season parent season
+     * @param venue resolved venue for the meeting
+     * @param meeting source meeting payload
+     * @return event and creation flag indicating whether a new row was inserted
+     */
     private UpsertEventResult upsertMeetingEvent(
         Sport sport,
         Competition competition,
@@ -244,6 +305,16 @@ class Formula1SyncWriteService {
         return new UpsertEventResult(eventRepository.save(event), created);
     }
 
+    /**
+     * Resolves the parent meeting event for a session using cache, DB lookup, or fallback creation.
+     *
+     * @param sport owning sport entity
+     * @param competition parent competition
+     * @param season parent season
+     * @param session source session payload
+     * @param cache per-run cache of meeting key to meeting event
+     * @return meeting event that should be assigned as parent for the session
+     */
     private Event resolveParentMeetingEvent(
         Sport sport,
         Competition competition,
@@ -293,6 +364,21 @@ class Formula1SyncWriteService {
         return saved;
     }
 
+        /*============================================================
+            SESSION UPSERT FLOW
+            Upsert child session events and align hierarchy links
+        ============================================================*/
+
+        /**
+         * Upserts one session event and links it to its parent meeting and season context.
+         *
+         * @param sport owning sport entity
+         * @param competition parent competition
+         * @param season parent season
+         * @param parentMeeting resolved parent meeting event
+         * @param session source session payload
+         * @return event and creation flag indicating whether a new row was inserted
+         */
     private UpsertEventResult upsertSessionEvent(
         Sport sport,
         Competition competition,
@@ -347,6 +433,17 @@ class Formula1SyncWriteService {
         return new UpsertEventResult(eventRepository.save(event), created);
     }
 
+        /*============================================================
+            MEDIA ENRICHMENT
+            Persist circuit logo assets attached to venue entities
+        ============================================================*/
+
+        /**
+         * Creates a venue logo media asset when the provider supplies a new circuit image URL.
+         *
+         * @param venue target venue entity
+         * @param meeting source meeting payload that may contain image metadata
+         */
     private void upsertVenueLogo(Venue venue, OpenF1MeetingDto meeting) {
         if (venue.getId() == null || meeting.circuitImage() == null || meeting.circuitImage().isBlank()) {
             return;
@@ -377,6 +474,18 @@ class Formula1SyncWriteService {
         mediaAssetRepository.save(asset);
     }
 
+        /*============================================================
+            DOMAIN MAPPING RULES
+            Translate provider text into normalized event typing and status
+        ============================================================*/
+
+        /**
+         * Maps provider session labels into normalized event types used by the API.
+         *
+         * @param sessionType provider session type text
+         * @param sessionName provider session display name
+         * @return normalized event type value
+         */
     private String mapEventType(String sessionType, String sessionName) {
         String source = ((sessionType == null ? "" : sessionType) + " " + (sessionName == null ? "" : sessionName)).toLowerCase();
         if (source.contains("sprint")) {
@@ -394,6 +503,13 @@ class Formula1SyncWriteService {
         return "session";
     }
 
+    /**
+     * Extracts qualifying stage markers (Q1/Q2/Q3) from session labels when present.
+     *
+     * @param sessionType provider session type text
+     * @param sessionName provider session display name
+     * @return qualifying stage code or null when not a staged qualifying session
+     */
     private String extractQualifyingStage(String sessionType, String sessionName) {
         String merged = ((sessionType == null ? "" : sessionType) + " " + (sessionName == null ? "" : sessionName)).toUpperCase();
         Matcher matcher = QUALIFYING_STAGE_PATTERN.matcher(merged);
@@ -403,6 +519,13 @@ class Formula1SyncWriteService {
         return null;
     }
 
+    /**
+     * Derives lifecycle status from event date bounds relative to current time.
+     *
+     * @param start event start timestamp
+     * @param end event end timestamp
+     * @return scheduled, live, or finished status value
+     */
     private String statusFor(OffsetDateTime start, OffsetDateTime end) {
         OffsetDateTime now = OffsetDateTime.now();
         if (start == null) {
@@ -417,6 +540,17 @@ class Formula1SyncWriteService {
         return "scheduled";
     }
 
+        /*============================================================
+            PROVIDER METADATA BUILDERS
+            Capture provider-specific values in jsonb metadata fields
+        ============================================================*/
+
+        /**
+         * Builds venue metadata payload from meeting provider attributes.
+         *
+         * @param meeting source meeting payload
+         * @return json object with optional provider venue fields
+         */
     private JsonNode buildVenueMetadata(OpenF1MeetingDto meeting) {
         ObjectNode node = objectMapper.createObjectNode();
         if (meeting.circuitKey() != null) {
@@ -440,6 +574,12 @@ class Formula1SyncWriteService {
         return node;
     }
 
+    /**
+     * Builds meeting metadata payload from provider attributes.
+     *
+     * @param meeting source meeting payload
+     * @return json object with optional provider meeting fields
+     */
     private JsonNode buildMeetingMetadata(OpenF1MeetingDto meeting) {
         ObjectNode node = objectMapper.createObjectNode();
         if (meeting.meetingKey() != null) {
@@ -460,6 +600,12 @@ class Formula1SyncWriteService {
         return node;
     }
 
+    /**
+     * Builds session metadata payload from provider attributes.
+     *
+     * @param session source session payload
+     * @return json object with optional provider session fields
+     */
     private JsonNode buildSessionMetadata(OpenF1SessionDto session) {
         ObjectNode node = objectMapper.createObjectNode();
         if (session.sessionKey() != null) {
@@ -486,14 +632,42 @@ class Formula1SyncWriteService {
         return node;
     }
 
+    /*============================================================
+      GENERIC HELPERS
+      Null handling, change detection, and same-entity checks
+    ============================================================*/
+
+    /**
+     * Returns the fallback when value is null or blank.
+     *
+     * @param value source text
+     * @param fallback replacement text when source is empty
+     * @return non-blank value
+     */
     private static String nullSafe(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
     }
 
+    /**
+     * Returns the fallback when value is null.
+     *
+     * @param value source number
+     * @param fallback replacement number
+     * @return source or fallback
+     */
     private static long nullSafe(Long value, long fallback) {
         return value == null ? fallback : value;
     }
 
+    /**
+     * Updates a field only when the value changed.
+     *
+     * @param current current value
+     * @param next candidate value
+     * @param setter mutator to call when changed
+     * @return true when an update was applied
+     * @param <T> compared value type
+     */
     private static <T> boolean setIfChanged(T current, T next, java.util.function.Consumer<T> setter) {
         if (Objects.equals(current, next)) {
             return false;
@@ -502,6 +676,13 @@ class Formula1SyncWriteService {
         return true;
     }
 
+    /**
+     * Compares supported entities by id to avoid false positives from detached object instances.
+     *
+     * @param left first entity candidate
+     * @param right second entity candidate
+     * @return true when both represent the same persisted entity or both are null
+     */
     private static boolean sameEntityId(Object left, Object right) {
         if (left == null && right == null) {
             return true;
@@ -518,6 +699,12 @@ class Formula1SyncWriteService {
         return Objects.equals(readEntityId(left), readEntityId(right));
     }
 
+    /**
+     * Reads entity id for supported types used in sync association checks.
+     *
+     * @param entity supported entity instance
+     * @return entity id or null when unsupported
+     */
     private static Long readEntityId(Object entity) {
         if (entity instanceof Event event) {
             return event.getId();
