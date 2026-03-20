@@ -1,4 +1,17 @@
 spring:
+  data:
+    redis:
+      host: ${REDIS_HOST://localhost}
+      port: 6379
+      password:
+      timeout: 2000
+
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 2
+          max-wait: 2000ms
   application:
     name: parallax-sports-api
   mvc:
@@ -7,7 +20,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD:12345}
   jpa:
     open-in-view: false
 
@@ -28,6 +41,19 @@ app:
     daily-cron: ${EXTERNAL_SYNC_DAILY_CRON:0 30 0 * * *}
     years-back: ${EXTERNAL_SYNC_YEARS_BACK:0}
     years-forward: ${EXTERNAL_SYNC_YEARS_FORWARD:1}
+  alerts:
+    generation-enabled: ${ALERTS_GENERATION_ENABLED:true}
+    default-channel: ${ALERTS_DEFAULT_CHANNEL:telegram}
+    default-lead-time-minutes: ${ALERTS_DEFAULT_LEAD_MINUTES:30}
+    dispatch-enabled: ${ALERTS_DISPATCH_ENABLED:false}
+    dispatch-cron: ${ALERTS_DISPATCH_CRON:0 * * * * *}
+    dispatch-batch-size: ${ALERTS_DISPATCH_BATCH_SIZE:100}
+    telegram-stream: ${ALERTS_TELEGRAM_STREAM:alerts.telegram.v1}
+    discord-stream: ${ALERTS_DISCORD_STREAM:alerts.discord.v1}
+    email-stream: ${ALERTS_EMAIL_STREAM:alerts.email.v1}
+    ktor-base-url: ${KTOR_ALERTS_BASE_URL:}
+    ktor-dispatch-path: ${KTOR_ALERTS_DISPATCH_PATH:/internal/alerts/dispatch}
+    ktor-api-key: ${KTOR_ALERTS_API_KEY}
 
 observability:
   loki-url: ${LOKI_URL:http://localhost:3100}

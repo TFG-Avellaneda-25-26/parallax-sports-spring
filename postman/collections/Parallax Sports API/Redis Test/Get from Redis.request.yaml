@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get from Redis
+method: GET
+url: '{{baseUrl}}/api/redis/get'
+order: 2000

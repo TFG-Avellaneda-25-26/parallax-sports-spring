@@ -31,8 +31,8 @@ import org.hibernate.type.SqlTypes;
 @Builder
 @Entity
 @Table(name = "user_sport_follows")
-@Check(constraints = "follow_type in ('competition', 'participant', 'venue')")
-@Check(constraints = "((competition_id is not null)::int + (participant_id is not null)::int + (venue_id is not null)::int) = 1")
+@Check(constraints = "follow_type in ('competition', 'participant')")
+@Check(constraints = "((competition_id is not null)::int + (participant_id is not null)::int) = 1")
 @ToString(exclude = "user")
 public class UserSportFollow {
 
@@ -55,9 +55,6 @@ public class UserSportFollow {
 
     @Column(name = "participant_id")
     private Long participantId;
-
-    @Column(name = "venue_id")
-    private Long venueId;
 
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "event_type_filter", columnDefinition = "text[]")

@@ -1,0 +1,5 @@
+$kind: http-request
+name: Save to Redis
+method: GET
+url: '{{baseUrl}}/api/redis/save'
+order: 1000

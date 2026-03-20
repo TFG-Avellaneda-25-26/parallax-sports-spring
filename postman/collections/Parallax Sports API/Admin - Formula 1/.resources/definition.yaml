@@ -1,0 +1,4 @@
+$kind: collection
+name: Admin - Formula 1
+description: Admin endpoints for Formula 1 data synchronization. Requires admin privileges.
+order: 5000
