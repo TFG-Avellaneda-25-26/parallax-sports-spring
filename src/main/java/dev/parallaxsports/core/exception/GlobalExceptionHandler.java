@@ -7,17 +7,20 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Central exception-to-ProblemDetail translator for application and domain errors.
@@ -39,15 +42,13 @@ public class GlobalExceptionHandler {
     private static final String TYPE_CONFLICT = "http://localhost:4200/problems/conflict";
     private static final String TYPE_VALIDATION = "http://localhost:4200/problems/validation-error";
     private static final String TYPE_MALFORMED_BODY = "http://localhost:4200/problems/malformed-body";
+    private static final String TYPE_BAD_GATEWAY = "http://localhost:4200/problems/bad-gateway";
+    private static final String TYPE_SERVICE_UNAVAILABLE = "http://localhost:4200/problems/service-unavailable";
     private static final String TYPE_INTERNAL = "http://localhost:4200/problems/internal-error";
 
     /*============================================================
       DOMAIN EXCEPTIONS
       Business-level errors related to resource state and rules
-      
-      Links: 
-        - https://stackoverflow.com/questions/75527032/responsebodyadvice-beforebodywrite-method-serverhttpresponse-has-null-status-and
-        - https://www.baeldung.com/spring-boot-return-errors-problemdetail
     ============================================================*/
 
     // -> Triggers: requested resource does not exist || Returns: Not Found (404)
@@ -130,6 +131,26 @@ public class GlobalExceptionHandler {
         );
     }
 
+    // -> Triggers: invalid state transition / lifecycle conflict || Returns: Conflict (409)
+    /**
+     * Handles state transition conflicts in lifecycle-driven operations.
+     *
+     * @param ex state conflict exception with client-safe detail message
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 409
+     */
+    @ExceptionHandler(StateConflictException.class)
+    public ProblemDetail handleStateConflict(StateConflictException ex, WebRequest request) {
+        logHandled(HttpStatus.CONFLICT, ex, request);
+        return buildProblem(
+            TYPE_CONFLICT,
+            HttpStatus.CONFLICT,
+            "Conflict",
+            ex.getMessage(),
+            request
+        );
+    }
+
     /*============================================================
       PERSISTENCE EXCEPTIONS
       DB-integrity and relational-constraint translation
@@ -176,19 +197,19 @@ public class GlobalExceptionHandler {
         );
     }
 
-        /*============================================================
-            SECURITY EXCEPTIONS
-            Authentication and authorization boundaries
-        ============================================================*/
+    /*============================================================
+      SECURITY EXCEPTIONS
+      Authentication and authorization boundaries
+    ============================================================*/
 
-        // -> Triggers: authenticated user lacks permission || Returns: Forbidden (403)
-        /**
-         * Handles authorization denials for protected resources.
-         *
-         * @param ex access denied exception
-         * @param request current web request
-         * @return RFC ProblemDetail payload with status 403
-         */
+    // -> Triggers: authenticated user lacks permission || Returns: Forbidden (403)
+    /**
+     * Handles authorization denials for protected resources.
+     *
+     * @param ex access denied exception
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 403
+     */
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
         logHandled(HttpStatus.FORBIDDEN, ex, request);
@@ -201,14 +222,14 @@ public class GlobalExceptionHandler {
         );
     }
 
-        // -> Triggers: Spring Security auth failure (includes BadCredentialsException) || Returns: Unauthorized (401)
-        /**
-         * Handles Spring Security authentication failures.
-         *
-         * @param ex authentication exception (includes bad credentials and similar auth errors)
-         * @param request current web request
-         * @return RFC ProblemDetail payload with status 401
-         */
+    // -> Triggers: Spring Security auth failure (includes BadCredentialsException) || Returns: Unauthorized (401)
+    /**
+     * Handles Spring Security authentication failures.
+     *
+     * @param ex authentication exception (includes bad credentials and similar auth errors)
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 401
+     */
     @ExceptionHandler(AuthenticationException.class)
     public ProblemDetail handleAuthenticationFailure(AuthenticationException ex, WebRequest request) {
         logHandled(HttpStatus.UNAUTHORIZED, ex, request);
@@ -221,19 +242,19 @@ public class GlobalExceptionHandler {
         );
     }
 
-        /*============================================================
-            VALIDATION EXCEPTIONS
-            Bean validation and request body parsing failures
-        ============================================================*/
+    /*============================================================
+      VALIDATION EXCEPTIONS
+      Bean validation and request body parsing failures
+    ============================================================*/
 
-        // -> Triggers: method parameter constraint violations || Returns: Bad Request (400)
-        /**
-         * Handles method-level constraint validation errors.
-         *
-         * @param ex constraint violation exception
-         * @param request current web request
-         * @return RFC ProblemDetail payload with status 400 and violation map
-         */
+    // -> Triggers: method parameter constraint violations || Returns: Bad Request (400)
+    /**
+     * Handles method-level constraint validation errors.
+     *
+     * @param ex constraint violation exception
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 400 and violation map
+     */
     @ExceptionHandler(ConstraintViolationException.class)
     public ProblemDetail handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
@@ -293,14 +314,14 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-        // -> Triggers: malformed JSON / unreadable request body || Returns: Bad Request (400)
-        /**
-         * Handles JSON parse and request-body deserialization failures.
-         *
-         * @param ex unreadable message exception
-         * @param request current web request
-         * @return RFC ProblemDetail payload with status 400
-         */
+    // -> Triggers: malformed JSON / unreadable request body || Returns: Bad Request (400)
+    /**
+     * Handles JSON parse and request-body deserialization failures.
+     *
+     * @param ex unreadable message exception
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 400
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail handleHttpMessageNotReadable(HttpMessageNotReadableException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
@@ -313,6 +334,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /*============================================================
+      INTEGRATION AND INFRASTRUCTURE EXCEPTIONS
+      Upstream failures, transport errors, and system availability issues
+    ============================================================*/
+
+    // -> Triggers: explicit status raised by lower application layers || Returns: propagated status
+    /**
+     * Preserves explicit HTTP status semantics from ResponseStatusException.
+     *
+     * @param ex status exception carrying status code and optional reason
+     * @param request current web request
+     * @return RFC ProblemDetail payload with propagated status and detail
+     */
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail handleResponseStatus(ResponseStatusException ex, WebRequest request) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
@@ -329,19 +363,103 @@ public class GlobalExceptionHandler {
         );
     }
 
-        /*============================================================
-            SAFETY NET
-            Last-resort fallback for uncaught exceptions
-        ============================================================*/
+    // -> Triggers: upstream dependency returned an error response || Returns: Bad Gateway (502)
+    /**
+     * Handles upstream service failures returned by external dependencies.
+     *
+     * @param ex upstream exception with client-safe detail message
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 502
+     */
+    @ExceptionHandler(UpstreamServiceException.class)
+    public ProblemDetail handleUpstreamService(UpstreamServiceException ex, WebRequest request) {
+        logHandled(HttpStatus.BAD_GATEWAY, ex, request);
+        return buildProblem(
+            TYPE_BAD_GATEWAY,
+            HttpStatus.BAD_GATEWAY,
+            "Bad Gateway",
+            ex.getMessage(),
+            request
+        );
+    }
 
-        // -> Triggers: unhandled exception fallback || Returns: Internal Server Error (500)
-        /**
-         * Handles uncaught exceptions not matched by more specific handlers.
-         *
-         * @param ex unexpected exception
-         * @param request current web request
-         * @return RFC ProblemDetail payload with status 500
-         */
+    // -> Triggers: Redis or dependent service temporarily unavailable || Returns: Service Unavailable (503)
+    /**
+     * Handles temporary infrastructure unavailability from runtime dependencies.
+     *
+     * @param ex runtime exception from service infrastructure dependencies
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 503
+     */
+    @ExceptionHandler({
+        ServiceUnavailableException.class,
+        RedisConnectionFailureException.class,
+        RedisSystemException.class
+    })
+    public ProblemDetail handleServiceUnavailable(RuntimeException ex, WebRequest request) {
+        logHandled(HttpStatus.SERVICE_UNAVAILABLE, ex, request);
+        return buildProblem(
+            TYPE_SERVICE_UNAVAILABLE,
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Service Unavailable",
+            ex.getMessage() == null ? "Service temporarily unavailable" : ex.getMessage(),
+            request
+        );
+    }
+
+    // -> Triggers: outbound HTTP client call failed || Returns: Bad Gateway (502)
+    /**
+     * Handles transport-level outbound HTTP failures to external services.
+     *
+     * @param ex REST client exception from outbound integration path
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 502
+     */
+    @ExceptionHandler(RestClientException.class)
+    public ProblemDetail handleRestClientException(RestClientException ex, WebRequest request) {
+        logHandled(HttpStatus.BAD_GATEWAY, ex, request);
+        return buildProblem(
+            TYPE_BAD_GATEWAY,
+            HttpStatus.BAD_GATEWAY,
+            "Bad Gateway",
+            "Upstream service request failed",
+            request
+        );
+    }
+
+    // -> Triggers: missing/invalid runtime configuration || Returns: Internal Server Error (500)
+    /**
+     * Handles runtime system configuration failures that block normal operation.
+     *
+     * @param ex configuration exception with operator-facing detail message
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 500
+     */
+    @ExceptionHandler(SystemConfigurationException.class)
+    public ProblemDetail handleSystemConfiguration(SystemConfigurationException ex, WebRequest request) {
+        logHandled(HttpStatus.INTERNAL_SERVER_ERROR, ex, request);
+        return buildProblem(
+            TYPE_INTERNAL,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "Internal Server Error",
+            ex.getMessage(),
+            request
+        );
+    }
+
+    /*============================================================
+      SAFETY NET
+      Last-resort fallback for uncaught exceptions
+    ============================================================*/
+
+    // -> Triggers: unhandled exception fallback || Returns: Internal Server Error (500)
+    /**
+     * Handles uncaught exceptions not matched by more specific handlers.
+     *
+     * @param ex unexpected exception
+     * @param request current web request
+     * @return RFC ProblemDetail payload with status 500
+     */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex, WebRequest request) {
         logHandled(HttpStatus.INTERNAL_SERVER_ERROR, ex, request);
@@ -354,18 +472,18 @@ public class GlobalExceptionHandler {
         );
     }
 
-        /*============================================================
-            INTERNAL HELPERS
-            Logging, payload shaping, and DB message extraction
-        ============================================================*/
+    /*============================================================
+      INTERNAL HELPERS
+      Logging, payload shaping, and DB message extraction
+    ============================================================*/
 
-        /**
-         * Writes structured exception logs for observability pipelines.
-         *
-         * @param status HTTP status that will be returned
-         * @param ex exception to log
-         * @param request current web request
-         */
+    /**
+     * Writes structured exception logs for observability pipelines.
+     *
+     * @param status HTTP status that will be returned
+     * @param ex exception to log
+     * @param request current web request
+     */
     private void logHandled(HttpStatus status, Throwable ex, WebRequest request) {
         String path = requestPath(request);
         String exceptionType = ex == null ? "UnknownException" : ex.getClass().getSimpleName();
@@ -393,14 +511,12 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Builds a ProblemDetail payload with status, title, detail, and instance path.
-        *
-        * For exceptions handled here, this method is the primary place where semantic
-        * problem types are assigned. Any missing or generic values are normalized later by
-        * {@link ProblemDetailResponseAdvice} before the response is serialized.
+     * Builds a ProblemDetail payload with semantic type, status, title, detail, and instance path.
      *
+     * @param type problem type URI
      * @param status HTTP status for the response
-     * @param message client-safe detail message
+     * @param title short problem title
+     * @param detail client-safe detail message
      * @param request current web request
      * @return initialized ProblemDetail object
      */

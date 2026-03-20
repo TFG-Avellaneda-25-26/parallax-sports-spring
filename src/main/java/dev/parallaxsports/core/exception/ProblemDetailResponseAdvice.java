@@ -30,6 +30,8 @@ public class ProblemDetailResponseAdvice implements ResponseBodyAdvice<Object> {
     private static final String TYPE_UNAUTHORIZED = "http://localhost:4200/problems/unauthorized";
     private static final String TYPE_FORBIDDEN = "http://localhost:4200/problems/forbidden";
     private static final String TYPE_CONFLICT = "http://localhost:4200/problems/conflict";
+    private static final String TYPE_BAD_GATEWAY = "http://localhost:4200/problems/bad-gateway";
+    private static final String TYPE_SERVICE_UNAVAILABLE = "http://localhost:4200/problems/service-unavailable";
     private static final String TYPE_INTERNAL = "http://localhost:4200/problems/internal-error";
 
     /**
@@ -108,6 +110,8 @@ public class ProblemDetailResponseAdvice implements ResponseBodyAdvice<Object> {
             case 403 -> TYPE_FORBIDDEN;
             case 404 -> TYPE_NOT_FOUND;
             case 409 -> TYPE_CONFLICT;
+            case 502 -> TYPE_BAD_GATEWAY;
+            case 503 -> TYPE_SERVICE_UNAVAILABLE;
             case 500 -> TYPE_INTERNAL;
             default -> "http://localhost:4200/problems/http-" + status;
         };
