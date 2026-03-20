@@ -51,6 +51,16 @@ app:
     telegram-stream: ${ALERTS_TELEGRAM_STREAM:alerts.telegram.v1}
     discord-stream: ${ALERTS_DISCORD_STREAM:alerts.discord.v1}
     email-stream: ${ALERTS_EMAIL_STREAM:alerts.email.v1}
+    telegram-dlq-stream: ${ALERTS_TELEGRAM_DLQ_STREAM:alerts.telegram.dlq.v1}
+    discord-dlq-stream: ${ALERTS_DISCORD_DLQ_STREAM:alerts.discord.dlq.v1}
+    email-dlq-stream: ${ALERTS_EMAIL_DLQ_STREAM:alerts.email.dlq.v1}
+    telegram-consumer-group: ${ALERTS_TELEGRAM_CONSUMER_GROUP:alerts.telegram.workers.v1}
+    discord-consumer-group: ${ALERTS_DISCORD_CONSUMER_GROUP:alerts.discord.workers.v1}
+    email-consumer-group: ${ALERTS_EMAIL_CONSUMER_GROUP:alerts.email.workers.v1}
+    pending-claim-idle-ms: ${ALERTS_PENDING_CLAIM_IDLE_MS:60000}
+    stream-trim-enabled: ${ALERTS_STREAM_TRIM_ENABLED:true}
+    stream-max-len: ${ALERTS_STREAM_MAX_LEN:200000}
+    http-fallback-enabled: ${ALERTS_HTTP_FALLBACK_ENABLED:false}
     ktor-base-url: ${KTOR_ALERTS_BASE_URL:}
     ktor-dispatch-path: ${KTOR_ALERTS_DISPATCH_PATH:/internal/alerts/dispatch}
     ktor-api-key: ${KTOR_ALERTS_API_KEY}

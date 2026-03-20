@@ -1,4 +1,4 @@
-package dev.parallaxsports.notification.service;
+package dev.parallaxsports.notification.startup;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +8,12 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+/**
+ * Verifies required alert schema objects at application startup.
+ *
+ * This validation is fail-fast: missing tables/columns throw startup errors
+ * so async alerts do not run with a partial schema.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -15,6 +21,13 @@ public class AlertSchemaStartupValidator implements ApplicationRunner {
 
     private final JdbcTemplate jdbcTemplate;
 
+    /**
+     * Executes schema checks during boot.
+     *
+     * Scanner trigger words: startup, schema, tables, columns.
+     *
+     * @param args application args
+     */
     @Override
     public void run(ApplicationArguments args) {
         requireTable("user_event_alerts");
@@ -59,6 +72,11 @@ public class AlertSchemaStartupValidator implements ApplicationRunner {
         log.info("Alert schema startup validation passed");
     }
 
+    /**
+     * Ensures one required table exists in public schema.
+     *
+     * @param tableName required table name
+     */
     private void requireTable(String tableName) {
         Integer count = jdbcTemplate.queryForObject(
             """
@@ -76,6 +94,12 @@ public class AlertSchemaStartupValidator implements ApplicationRunner {
         }
     }
 
+    /**
+     * Ensures required columns exist for a table.
+     *
+     * @param tableName table to inspect
+     * @param columns required column names
+     */
     private void requireColumns(String tableName, List<String> columns) {
         for (String column : columns) {
             Integer count = jdbcTemplate.queryForObject(

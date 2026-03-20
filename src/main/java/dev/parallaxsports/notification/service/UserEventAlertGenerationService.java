@@ -24,6 +24,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Generates or updates per-user alert rows for upcoming events.
+ *
+ * Generation combines:
+ * - user sport settings,
+ * - explicit follow targets,
+ * - enabled notification channels,
+ * and then computes one idempotent alert record per effective user/channel/lead-time tuple.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -39,6 +48,13 @@ public class UserEventAlertGenerationService {
     private final UserRepository userRepository;
     private final AlertProperties alertProperties;
 
+    /**
+     * Creates/updates alerts for incoming event candidates.
+     *
+     * Scanner trigger words: generate, upsert, eligible users, lead time.
+     *
+     * @param events event candidates that may produce alerts
+     */
     @Transactional
     public void generateForEvents(List<Event> events) {
         if (!alertProperties.isGenerationEnabled() || events.isEmpty()) {
@@ -107,6 +123,17 @@ public class UserEventAlertGenerationService {
         log.info("Alert generation completed events={} generatedOrUpdated={}", events.size(), generatedCount);
     }
 
+    /**
+     * Computes users eligible to receive alerts for one event.
+     *
+     * Eligibility is the union of follow-all settings and explicit follows that
+     * match target + event type filters.
+     *
+     * @param event source event
+     * @param sportSettings settings rows for sport
+     * @param sportFollows follow rows for sport
+     * @return set of eligible user ids
+     */
     private Set<Long> resolveEligibleUsers(
         Event event,
         List<UserSportSettings> sportSettings,
@@ -143,6 +170,13 @@ public class UserEventAlertGenerationService {
         return eligibleUserIds;
     }
 
+    /**
+     * Matches event target against one follow target.
+     *
+     * @param event source event
+     * @param follow follow row
+     * @return true when follow target matches event
+     */
     private boolean matchesTarget(Event event, UserSportFollow follow) {
         String followType = follow.getFollowType();
         if ("competition".equalsIgnoreCase(followType)) {
@@ -156,6 +190,13 @@ public class UserEventAlertGenerationService {
         return false;
     }
 
+    /**
+     * Applies optional event-type filtering.
+     *
+     * @param eventType event type from source event
+     * @param filters configured filter list
+     * @return true when event type is accepted
+     */
     private boolean matchesEventType(String eventType, List<String> filters) {
         if (filters == null || filters.isEmpty()) {
             return true;
@@ -173,6 +214,15 @@ public class UserEventAlertGenerationService {
         return false;
     }
 
+    /**
+     * Upserts one alert row for a user/event/channel/lead-time tuple.
+     *
+     * @param userId target user
+     * @param eventId source event id
+     * @param channel channel key
+     * @param leadTimeMinutes lead time before event
+     * @param sendAtUtc computed schedule timestamp
+     */
     private void upsertAlert(Long userId, Long eventId, String channel, int leadTimeMinutes, OffsetDateTime sendAtUtc) {
         boolean artifactRequired = "discord".equalsIgnoreCase(channel);
         String computedStatus = artifactRequired ? WAITING_ARTIFACT : SCHEDULED;
@@ -205,6 +255,12 @@ public class UserEventAlertGenerationService {
             });
     }
 
+    /**
+     * Normalizes configured channel values to supported channel keys.
+     *
+     * @param configuredChannel raw channel value
+     * @return normalized channel, defaulting to telegram
+     */
     private String normalizeChannel(String configuredChannel) {
         if (configuredChannel == null || configuredChannel.isBlank()) {
             return "telegram";

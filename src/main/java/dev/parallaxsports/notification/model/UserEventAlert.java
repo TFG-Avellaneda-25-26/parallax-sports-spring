@@ -21,6 +21,19 @@ import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.annotations.Check;
 
+/**
+ * Aggregate root representing one user alert for one event/channel/lead-time tuple.
+ *
+ * Lifecycle status values:
+ * - scheduled: ready for dispatch scheduling.
+ * - waiting_artifact: blocked until required media artifact metadata exists.
+ * - queued: published to transport and pending notification microservice consumption.
+ * - processing: accepted by notification microservice.
+ * - sent: terminal success.
+ * - failed_retryable: transient failure eligible for retry.
+ * - failed_permanent: terminal failure.
+ * - cancelled: terminal cancellation.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -122,6 +135,9 @@ public class UserEventAlert {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    /**
+     * Initializes audit timestamps when row is inserted.
+     */
     @PrePersist
     void onCreate() {
         OffsetDateTime now = OffsetDateTime.now();
@@ -133,6 +149,9 @@ public class UserEventAlert {
         }
     }
 
+    /**
+     * Refreshes updated-at timestamp on each update.
+     */
     @jakarta.persistence.PreUpdate
     void onUpdate() {
         updatedAt = OffsetDateTime.now();

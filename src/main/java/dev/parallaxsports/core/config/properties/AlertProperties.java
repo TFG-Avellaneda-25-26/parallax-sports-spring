@@ -15,6 +15,16 @@ public class AlertProperties {
     private String telegramStream = "alerts.telegram.v1";
     private String discordStream = "alerts.discord.v1";
     private String emailStream = "alerts.email.v1";
+    private String telegramDlqStream = "alerts.telegram.dlq.v1";
+    private String discordDlqStream = "alerts.discord.dlq.v1";
+    private String emailDlqStream = "alerts.email.dlq.v1";
+    private String telegramConsumerGroup = "alerts.telegram.workers.v1";
+    private String discordConsumerGroup = "alerts.discord.workers.v1";
+    private String emailConsumerGroup = "alerts.email.workers.v1";
+    private long pendingClaimIdleMs = 60000;
+    private boolean streamTrimEnabled = true;
+    private long streamMaxLen = 200000;
+    private boolean httpFallbackEnabled = false;
 
     private String ktorBaseUrl;
     private String ktorDispatchPath = "/internal/alerts/dispatch";
@@ -92,6 +102,86 @@ public class AlertProperties {
         this.emailStream = emailStream;
     }
 
+    public String getTelegramDlqStream() {
+        return telegramDlqStream;
+    }
+
+    public void setTelegramDlqStream(String telegramDlqStream) {
+        this.telegramDlqStream = telegramDlqStream;
+    }
+
+    public String getDiscordDlqStream() {
+        return discordDlqStream;
+    }
+
+    public void setDiscordDlqStream(String discordDlqStream) {
+        this.discordDlqStream = discordDlqStream;
+    }
+
+    public String getEmailDlqStream() {
+        return emailDlqStream;
+    }
+
+    public void setEmailDlqStream(String emailDlqStream) {
+        this.emailDlqStream = emailDlqStream;
+    }
+
+    public String getTelegramConsumerGroup() {
+        return telegramConsumerGroup;
+    }
+
+    public void setTelegramConsumerGroup(String telegramConsumerGroup) {
+        this.telegramConsumerGroup = telegramConsumerGroup;
+    }
+
+    public String getDiscordConsumerGroup() {
+        return discordConsumerGroup;
+    }
+
+    public void setDiscordConsumerGroup(String discordConsumerGroup) {
+        this.discordConsumerGroup = discordConsumerGroup;
+    }
+
+    public String getEmailConsumerGroup() {
+        return emailConsumerGroup;
+    }
+
+    public void setEmailConsumerGroup(String emailConsumerGroup) {
+        this.emailConsumerGroup = emailConsumerGroup;
+    }
+
+    public long getPendingClaimIdleMs() {
+        return pendingClaimIdleMs;
+    }
+
+    public void setPendingClaimIdleMs(long pendingClaimIdleMs) {
+        this.pendingClaimIdleMs = pendingClaimIdleMs;
+    }
+
+    public boolean isStreamTrimEnabled() {
+        return streamTrimEnabled;
+    }
+
+    public void setStreamTrimEnabled(boolean streamTrimEnabled) {
+        this.streamTrimEnabled = streamTrimEnabled;
+    }
+
+    public long getStreamMaxLen() {
+        return streamMaxLen;
+    }
+
+    public void setStreamMaxLen(long streamMaxLen) {
+        this.streamMaxLen = streamMaxLen;
+    }
+
+    public boolean isHttpFallbackEnabled() {
+        return httpFallbackEnabled;
+    }
+
+    public void setHttpFallbackEnabled(boolean httpFallbackEnabled) {
+        this.httpFallbackEnabled = httpFallbackEnabled;
+    }
+
     public String streamNameForChannel(String channel) {
         if ("telegram".equalsIgnoreCase(channel)) {
             return telegramStream;
@@ -101,6 +191,32 @@ public class AlertProperties {
         }
         if ("email".equalsIgnoreCase(channel)) {
             return emailStream;
+        }
+        throw new IllegalArgumentException("Unsupported alert channel: " + channel);
+    }
+
+    public String dlqStreamNameForChannel(String channel) {
+        if ("telegram".equalsIgnoreCase(channel)) {
+            return telegramDlqStream;
+        }
+        if ("discord".equalsIgnoreCase(channel)) {
+            return discordDlqStream;
+        }
+        if ("email".equalsIgnoreCase(channel)) {
+            return emailDlqStream;
+        }
+        throw new IllegalArgumentException("Unsupported alert channel: " + channel);
+    }
+
+    public String consumerGroupForChannel(String channel) {
+        if ("telegram".equalsIgnoreCase(channel)) {
+            return telegramConsumerGroup;
+        }
+        if ("discord".equalsIgnoreCase(channel)) {
+            return discordConsumerGroup;
+        }
+        if ("email".equalsIgnoreCase(channel)) {
+            return emailConsumerGroup;
         }
         throw new IllegalArgumentException("Unsupported alert channel: " + channel);
     }
