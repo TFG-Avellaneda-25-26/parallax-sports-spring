@@ -11,6 +11,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,9 +27,14 @@ import org.hibernate.annotations.Check;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "user_event_alerts")
-@Check(constraints = "channel in ('telegram', 'discord', 'push', 'in_app')")
-@Check(constraints = "status in ('scheduled', 'sent', 'failed', 'cancelled')")
+@Table(
+    name = "user_event_alerts",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "user_event_alerts_idempotency_uniq", columnNames = "idempotency_key")
+    }
+)
+@Check(constraints = "channel in ('telegram', 'discord', 'email')")
+@Check(constraints = "status in ('scheduled', 'waiting_artifact', 'queued', 'processing', 'sent', 'failed_retryable', 'failed_permanent', 'cancelled')")
 @ToString(exclude = "user")
 public class UserEventAlert {
 
@@ -52,16 +58,83 @@ public class UserEventAlert {
     @Column(name = "send_at_utc", nullable = false)
     private OffsetDateTime sendAtUtc;
 
+    @Column(name = "idempotency_key", nullable = false)
+    private String idempotencyKey;
+
     @Column(nullable = false)
     private String status;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer attempts = 0;
+
+    @Column(name = "max_attempts", nullable = false)
+    @Builder.Default
+    private Integer maxAttempts = 6;
+
+    @Column(name = "next_retry_at_utc")
+    private OffsetDateTime nextRetryAtUtc;
+
+    @Column(name = "queued_at_utc")
+    private OffsetDateTime queuedAtUtc;
+
+    @Column(name = "processing_started_at_utc")
+    private OffsetDateTime processingStartedAtUtc;
+
+    @Column(name = "dispatched_at_utc")
+    private OffsetDateTime dispatchedAtUtc;
+
+    @Column(name = "sent_at_utc")
+    private OffsetDateTime sentAtUtc;
+
+    @Column(name = "stream_name")
+    private String streamName;
+
+    @Column(name = "stream_message_id")
+    private String streamMessageId;
+
+    @Column(name = "provider_message_id")
+    private String providerMessageId;
+
+    @Column(name = "worker_id")
+    private String workerId;
+
+    @Column(name = "artifact_required", nullable = false)
+    @Builder.Default
+    private boolean artifactRequired = false;
+
+    @Column(name = "artifact_id")
+    private Long artifactId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "artifact_id", insertable = false, updatable = false)
+    private AlertArtifact artifact;
+
+    @Column(name = "last_error")
+    private String lastError;
+
+    @Column(name = "last_error_code")
+    private String lastErrorCode;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
     @PrePersist
     void onCreate() {
+        OffsetDateTime now = OffsetDateTime.now();
         if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
+            createdAt = now;
         }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
+    @jakarta.persistence.PreUpdate
+    void onUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
 }

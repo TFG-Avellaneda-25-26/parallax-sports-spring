@@ -34,6 +34,17 @@ class Formula1SessionReadService {
     private final EventRepository eventRepository;
     private final MediaAssetRepository mediaAssetRepository;
 
+        /*============================================================
+            SESSION LIST QUERY (ONE YEAR)
+            Validate Formula 1 setup and return API session payloads
+        ============================================================*/
+
+        /**
+         * Returns all synced Formula 1 session events for a given season year.
+         *
+         * @param year Formula 1 season year to fetch
+         * @return chronologically ordered session responses enriched with venue logo URLs when available
+         */
     List<Formula1SessionResponse> getSessionsForYear(int year) {
         Sport sport = sportRepository.findByKey(FORMULA1_KEY)
             .orElseThrow(() -> new ResourceNotFoundException("Formula1 sport not found. Run sync first."));
@@ -55,6 +66,17 @@ class Formula1SessionReadService {
         return sessionEvents.stream().map(event -> toSessionResponse(event, latestVenueLogos)).toList();
     }
 
+        /*============================================================
+            RESPONSE ENRICHMENT HELPERS
+            Attach latest venue logos and map entities to DTOs
+        ============================================================*/
+
+        /**
+         * Maps each venue id to its latest known logo URL.
+         *
+         * @param sessionEvents session entities that may reference venues
+         * @return map keyed by venue id with newest logo URL per venue
+         */
     private Map<Long, String> mapLatestVenueLogos(List<Event> sessionEvents) {
         List<Long> venueIds = sessionEvents
             .stream()
@@ -82,13 +104,22 @@ class Formula1SessionReadService {
         return latestByVenue;
     }
 
+    /**
+     * Converts an internal event entity into the public Formula 1 session payload.
+     *
+     * @param event session event entity to transform
+     * @param latestVenueLogos latest logo URL by venue id
+     * @return API response payload for a single session
+     */
     private Formula1SessionResponse toSessionResponse(Event event, Map<Long, String> latestVenueLogos) {
         Venue venue = event.getVenue();
         String logo = venue == null || venue.getId() == null ? null : latestVenueLogos.get(venue.getId());
+        Event parentMeeting = event.getParentEvent();
 
         return new Formula1SessionResponse(
             event.getId(),
             venue == null ? null : venue.getName(),
+            parentMeeting == null ? null : parentMeeting.getName(),
             logo,
             event.getStartTimeUtc(),
             event.getEndTimeUtc(),

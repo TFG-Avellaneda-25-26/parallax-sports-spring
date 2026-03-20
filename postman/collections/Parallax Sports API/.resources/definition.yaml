@@ -1,0 +1,27 @@
+$kind: collection
+name: Parallax Sports API
+description: |-
+  API collection for Parallax Sports Spring Boot application.
+  
+  ## Authentication
+  Most endpoints require JWT Bearer authentication. Use the /api/auth/login endpoint to obtain tokens.
+  
+  ## Base URL
+  Default: http://localhost:8080
+variables:
+  - key: baseUrl
+    value: 'http://localhost:8080'
+  - key: accessToken
+    value: ''
+    description: JWT access token obtained from login
+  - key: refreshToken
+    value: ''
+    description: JWT refresh token for token renewal
+  - key: userId
+    value: '1'
+    description: Default user ID for testing
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'

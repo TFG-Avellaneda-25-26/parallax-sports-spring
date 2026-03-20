@@ -3,8 +3,11 @@ package dev.parallaxsports.external.formula1.service;
 import dev.parallaxsports.external.formula1.client.OpenF1Client;
 import dev.parallaxsports.formula1.dto.Formula1SessionResponse;
 import dev.parallaxsports.formula1.dto.Formula1SyncResponse;
+import dev.parallaxsports.formula1.model.Event;
+import dev.parallaxsports.formula1.repository.EventRepository;
 import dev.parallaxsports.external.formula1.dto.OpenF1MeetingDto;
 import dev.parallaxsports.external.formula1.dto.OpenF1SessionDto;
+import dev.parallaxsports.notification.service.UserEventAlertGenerationService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +22,8 @@ public class Formula1SyncService {
     private final OpenF1Client openF1Client;
     private final Formula1SyncWriteService formula1SyncWriteService;
     private final Formula1SessionReadService formula1SessionReadService;
+    private final UserEventAlertGenerationService userEventAlertGenerationService;
+    private final EventRepository eventRepository;
 
     /**
      * Synchronizes one Formula 1 season by year from OpenF1 into normalized domain tables.
@@ -32,6 +37,8 @@ public class Formula1SyncService {
         List<OpenF1SessionDto> sessions = openF1Client.fetchSessions(year);
 
         Formula1SyncWriteService.SyncCounters counters = formula1SyncWriteService.syncSeason(year, meetings, sessions);
+        List<Event> syncedSessionEvents = eventRepository.findAllById(counters.processedSessionEventIds());
+        userEventAlertGenerationService.generateForEvents(syncedSessionEvents);
 
         log.info(
             "Formula1 sync finished year={} meetingsFetched={} sessionsFetched={} meetingsUpserted={} sessionsUpserted={} venuesUpserted={}",
