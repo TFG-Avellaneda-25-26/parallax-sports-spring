@@ -1,4 +1,0 @@
-$kind: collection
-name: Users
-description: User management endpoints for retrieving and updating user information.
-order: 2000

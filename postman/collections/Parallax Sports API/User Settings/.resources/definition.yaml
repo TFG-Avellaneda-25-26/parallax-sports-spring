@@ -1,4 +1,0 @@
-$kind: collection
-name: User Settings
-description: User settings endpoints for managing user preferences like theme, timezone, and locale.
-order: 3000

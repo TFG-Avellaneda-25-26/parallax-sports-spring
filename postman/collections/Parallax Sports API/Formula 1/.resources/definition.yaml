@@ -1,4 +1,0 @@
-$kind: collection
-name: Formula 1
-description: Formula 1 public endpoints for retrieving session data.
-order: 4000
