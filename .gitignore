@@ -1,6 +1,9 @@
 ## Spring Boot / Maven
 target/
 
+## Local API tooling and secrets
+postman/
+
 ## Java build and runtime files
 *.class
 *.jar
