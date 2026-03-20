@@ -3,7 +3,12 @@ name: Sync Year
 method: POST
 url: '{{baseUrl}}/api/admin/formula1/sync/:year'
 order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
 pathVariables:
   - key: year
-    value: '2024'
+    value: '{{formula1Year}}'
     description: Year to sync F1 data for

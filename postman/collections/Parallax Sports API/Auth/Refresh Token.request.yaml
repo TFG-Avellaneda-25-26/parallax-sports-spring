@@ -3,6 +3,8 @@ name: Refresh Token
 method: POST
 url: '{{baseUrl}}/api/auth/refresh'
 order: 3000
+auth:
+  type: noauth
 headers:
   - key: Content-Type
     value: application/json

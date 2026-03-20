@@ -19,18 +19,27 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
+/**
+ * Central exception-to-ProblemDetail translator for application and domain errors.
+ *
+ * This class is responsible for semantic mapping: choosing the most appropriate
+ * HTTP status, title, detail, and specific problem type for known exception categories.
+ * It is intentionally paired with {@link ProblemDetailResponseAdvice}, which performs
+ * last-mile normalization for any ProblemDetail not fully shaped at this layer
+ * (for example, framework-generated responses).
+ */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
-    private static final String TYPE_NOT_FOUND = "https://parallaxsports.dev/problems/not-found";
-    private static final String TYPE_BAD_REQUEST = "https://parallaxsports.dev/problems/bad-request";
-    private static final String TYPE_UNAUTHORIZED = "https://parallaxsports.dev/problems/unauthorized";
-    private static final String TYPE_FORBIDDEN = "https://parallaxsports.dev/problems/forbidden";
-    private static final String TYPE_CONFLICT = "https://parallaxsports.dev/problems/conflict";
-    private static final String TYPE_VALIDATION = "https://parallaxsports.dev/problems/validation-error";
-    private static final String TYPE_MALFORMED_BODY = "https://parallaxsports.dev/problems/malformed-body";
-    private static final String TYPE_INTERNAL = "https://parallaxsports.dev/problems/internal-error";
+    private static final String TYPE_NOT_FOUND = "http://localhost:4200/problems/not-found";
+    private static final String TYPE_BAD_REQUEST = "http://localhost:4200/problems/bad-request";
+    private static final String TYPE_UNAUTHORIZED = "http://localhost:4200/problems/unauthorized";
+    private static final String TYPE_FORBIDDEN = "http://localhost:4200/problems/forbidden";
+    private static final String TYPE_CONFLICT = "http://localhost:4200/problems/conflict";
+    private static final String TYPE_VALIDATION = "http://localhost:4200/problems/validation-error";
+    private static final String TYPE_MALFORMED_BODY = "http://localhost:4200/problems/malformed-body";
+    private static final String TYPE_INTERNAL = "http://localhost:4200/problems/internal-error";
 
     /*============================================================
       DOMAIN EXCEPTIONS
@@ -306,6 +315,7 @@ public class GlobalExceptionHandler {
         logHandled(status, ex, request);
         String detail = ex.getReason() == null ? status.getReasonPhrase() : ex.getReason();
 
+        // Keep explicit semantics minimal here; response advice upgrades about:blank to a concrete type URI.
         return buildProblem(
             "about:blank",
             status,
@@ -380,6 +390,10 @@ public class GlobalExceptionHandler {
 
     /**
      * Builds a ProblemDetail payload with status, title, detail, and instance path.
+        *
+        * For exceptions handled here, this method is the primary place where semantic
+        * problem types are assigned. Any missing or generic values are normalized later by
+        * {@link ProblemDetailResponseAdvice} before the response is serialized.
      *
      * @param status HTTP status for the response
      * @param message client-safe detail message

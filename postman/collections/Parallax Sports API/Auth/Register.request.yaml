@@ -3,6 +3,8 @@ name: Register
 method: POST
 url: '{{baseUrl}}/api/auth/register'
 order: 1000
+auth:
+  type: noauth
 headers:
   - key: Content-Type
     value: application/json
@@ -10,7 +12,7 @@ body:
   type: json
   content: |-
     {
-      "email": "user@example.com",
-      "password": "securePassword123",
-      "displayName": "John Doe"
+      "email": "{{userEmail}}",
+      "password": "{{userPassword}}",
+      "displayName": "{{userDisplayName}}"
     }

@@ -2,6 +2,13 @@
 workspace:
   id: fd38015b-4b85-4a5f-8053-92ded03657d2
 
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+cloudResources:
+  environments:
+    ../postman/environments/Parallax Sports - Local.yaml: 4e25788a-7253-569c-acd9-ee97e26c389b
+  collections:
+    ../postman/collections/Parallax Sports API: 42955335-16231738-7902-4403-8831-141ff63a80a0
+
 # All resources in the `postman/` folder are automatically registered in Local View.
 # Point to additional files outside the `postman/` folder to register them individually. Example:
 #localResources:

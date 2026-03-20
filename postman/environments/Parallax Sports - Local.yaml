@@ -12,6 +12,22 @@ values:
     value: ''
     enabled: true
     type: default
+  - key: userEmail
+    value: 'user@example.com'
+    enabled: true
+    type: default
+  - key: userPassword
+    value: 'securePassword123'
+    enabled: true
+    type: default
+  - key: userDisplayName
+    value: 'John Doe'
+    enabled: true
+    type: default
+  - key: formula1Year
+    value: '2024'
+    enabled: true
+    type: default
   - key: userId
     value: '1'
     enabled: true
@@ -38,5 +54,73 @@ values:
     type: default
   - key: openf1BaseUrl
     value: 'https://api.openf1.org/v1'
+    enabled: true
+    type: default
+  - key: API_KEY
+    value: '6HdCoDfrm5txAqVRBZhObwlUcLvTM7n2'
+    enabled: true
+    type: secret
+  - key: APIFOOTBALL_API_KEY
+    value: '819488e155b80ead10d224dfbe79f291'
+    enabled: true
+    type: secret
+  - key: PANDASCORE_API_KEY
+    value: 'Q5I8b9djTB-mlDgrui9SOryGCV48Um2D2MivlooklfoC9xvWix8'
+    enabled: true
+    type: secret
+  - key: CLOUDINARY_API_KEY
+    value: '865246943718243'
+    enabled: true
+    type: secret
+  - key: CLOUDINARY_API_SECRET
+    value: 'zdto6KRRbcgjQAnve6iTl-J_dP0'
+    enabled: true
+    type: secret
+  - key: CLOUDINARY_CLOUD_NAME
+    value: 'ds9pqtfuj'
+    enabled: true
+    type: default
+  - key: EMAIL_USERNAME
+    value: 'daw590779@gmail.com'
+    enabled: true
+    type: default
+  - key: DISCORD_BOT_TOKEN
+    value: '6HdCoDfrm5txAqVRBZhObwlUcLvTM7n2'
+    enabled: true
+    type: secret
+  - key: DISCORD_TOKEN
+    value: 'MTQ3MjY1MTMwMzUxMDYxMDE1NA.GeG0s4.NhId3lS5P4aJdBZokDThsYjGdsR18nea0pZJTw'
+    enabled: true
+    type: secret
+  - key: TELEGRAM_TOKEN
+    value: '8376455539:AAHA1XJU2LIV9gWY1FQ4JphUmFmADkCWZPk'
+    enabled: true
+    type: secret
+  - key: DB_URL
+    value: 'jdbc:postgresql://192.168.1.23:5432/postgres'
+    enabled: true
+    type: default
+  - key: DB_USER
+    value: 'postgres'
+    enabled: true
+    type: default
+  - key: DB_PASSWORD
+    value: 'nsme1995'
+    enabled: true
+    type: secret
+  - key: REDIS_HOST
+    value: '192.168.1.20'
+    enabled: true
+    type: default
+  - key: JWT_SECRET
+    value: 'IysvddVk%mw*MQ2aR^Pm@a*J8x1Mn^!6Y74%QzURwzmk0u!LG@F%OT0SEO^HY2Tj7ux52uiIsiXWI7FTysQok^9P*XH8AclL2n*8KA1xk4X&946k!2AMr$Ho32#dP^y5'
+    enabled: true
+    type: secret
+  - key: LOKI_URL
+    value: 'http://192.168.1.22:3100'
+    enabled: true
+    type: default
+  - key: PROMETHEUS_URL
+    value: 'http://192.168.1.21:9090'
     enabled: true
     type: default

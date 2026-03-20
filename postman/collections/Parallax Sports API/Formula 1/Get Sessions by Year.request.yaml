@@ -3,7 +3,9 @@ name: Get Sessions by Year
 method: GET
 url: '{{baseUrl}}/api/formula1/sessions/:year'
 order: 1000
+auth:
+  type: noauth
 pathVariables:
   - key: year
-    value: '2024'
+    value: '{{formula1Year}}'
     description: Year for F1 sessions (e.g., 2024)

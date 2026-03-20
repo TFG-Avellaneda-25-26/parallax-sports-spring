@@ -1,5 +1,12 @@
 $kind: http-request
 name: Get All Users
 method: GET
-url: '{{baseUrl}}/api/users'
+url: http://localhost:8080/api/users
+body:
+  type: json
+  content: |-
+    {
+        "email": "diego@gmail.com",
+        "password": "diego"
+    }
 order: 1000
