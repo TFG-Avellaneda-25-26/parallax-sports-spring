@@ -10,7 +10,7 @@ public record Formula1SessionResponse(
     OffsetDateTime startTimeUtc,
     OffsetDateTime endTimeUtc,
     String eventType,
-    String sessionName,
-    String stage
+    String sessionName
 ) {
 }
+ 

@@ -124,8 +124,7 @@ class Formula1SessionReadService {
             event.getStartTimeUtc(),
             event.getEndTimeUtc(),
             event.getEventType(),
-            event.getName(),
-            event.getStage()
+            event.getName()
         );
     }
 }

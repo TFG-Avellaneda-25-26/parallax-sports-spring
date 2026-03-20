@@ -25,8 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +36,6 @@ class Formula1SyncWriteService {
     private static final String FORMULA1_KEY = "formula1";
     private static final String FORMULA1_NAME = "Formula 1";
     private static final String F1_COMPETITION_NAME = "Formula 1 World Championship";
-    private static final Pattern QUALIFYING_STAGE_PATTERN = Pattern.compile("\\b(Q[1-3])\\b", Pattern.CASE_INSENSITIVE);
 
     private final SportRepository sportRepository;
     private final CompetitionRepository competitionRepository;
@@ -283,7 +280,6 @@ class Formula1SyncWriteService {
         boolean changed = false;
         changed |= setIfChanged(event.getEventType(), "meeting", event::setEventType);
         changed |= setIfChanged(event.getName(), nullSafe(meeting.meetingName(), "Formula 1 Meeting"), event::setName);
-        changed |= setIfChanged(event.getStage(), null, event::setStage);
         changed |= setIfChanged(event.getStatus(), statusFor(meeting.dateStart(), meeting.dateEnd()), event::setStatus);
         changed |= setIfChanged(event.getStartTimeUtc(), meeting.dateStart(), event::setStartTimeUtc);
         changed |= setIfChanged(event.getEndTimeUtc(), meeting.dateEnd(), event::setEndTimeUtc);
@@ -407,7 +403,6 @@ class Formula1SyncWriteService {
         boolean changed = false;
         changed |= setIfChanged(event.getName(), nullSafe(session.sessionName(), "Session " + session.sessionKey()), event::setName);
         changed |= setIfChanged(event.getEventType(), mapEventType(session.sessionType(), session.sessionName()), event::setEventType);
-        changed |= setIfChanged(event.getStage(), extractQualifyingStage(session.sessionType(), session.sessionName()), event::setStage);
         changed |= setIfChanged(event.getStatus(), statusFor(session.dateStart(), session.dateEnd()), event::setStatus);
         changed |= setIfChanged(event.getStartTimeUtc(), session.dateStart(), event::setStartTimeUtc);
         changed |= setIfChanged(event.getEndTimeUtc(), session.dateEnd(), event::setEndTimeUtc);
@@ -501,22 +496,6 @@ class Formula1SyncWriteService {
             return "practice";
         }
         return "session";
-    }
-
-    /**
-     * Extracts qualifying stage markers (Q1/Q2/Q3) from session labels when present.
-     *
-     * @param sessionType provider session type text
-     * @param sessionName provider session display name
-     * @return qualifying stage code or null when not a staged qualifying session
-     */
-    private String extractQualifyingStage(String sessionType, String sessionName) {
-        String merged = ((sessionType == null ? "" : sessionType) + " " + (sessionName == null ? "" : sessionName)).toUpperCase();
-        Matcher matcher = QUALIFYING_STAGE_PATTERN.matcher(merged);
-        if (matcher.find()) {
-            return matcher.group(1).toUpperCase();
-        }
-        return null;
     }
 
     /**
