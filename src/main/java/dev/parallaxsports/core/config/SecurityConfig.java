@@ -1,11 +1,16 @@
 package dev.parallaxsports.core.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.parallaxsports.auth.security.JwtAuthenticationFilter;
 import dev.parallaxsports.auth.security.UserDetailsServiceImpl;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -24,12 +29,37 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                        HttpStatus.UNAUTHORIZED, "Authentication required"
+                    );
+                    problem.setType(URI.create("/problems/unauthorized"));
+                    problem.setTitle("Unauthorized");
+                    problem.setInstance(URI.create(request.getRequestURI()));
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+                    objectMapper.writeValue(response.getOutputStream(), problem);
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                        HttpStatus.FORBIDDEN, "Access denied"
+                    );
+                    problem.setType(URI.create("/problems/forbidden"));
+                    problem.setTitle("Forbidden");
+                    problem.setInstance(URI.create(request.getRequestURI()));
+                    response.setStatus(HttpStatus.FORBIDDEN.value());
+                    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+                    objectMapper.writeValue(response.getOutputStream(), problem);
+                })
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
