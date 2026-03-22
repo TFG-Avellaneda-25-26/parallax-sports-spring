@@ -1,5 +1,6 @@
 package dev.parallaxsports.core.config.properties;
 
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -7,11 +8,11 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ExternalApiProperties {
 
+    @NotBlank
     private String openf1BaseUrl;
-    private String pandascoreBaseUrl;
-    private String apifootballBaseUrl;
-    private String apifootballApiKey;
-    private String pandascoreApiKey;
+    @NotBlank
+    private String balldontlieBasketballBaseUrl;
+    private String balldontlieApiKey;
 
     public String getOpenf1BaseUrl() {
         return openf1BaseUrl;
@@ -21,35 +22,19 @@ public class ExternalApiProperties {
         this.openf1BaseUrl = openf1BaseUrl;
     }
 
-    public String getPandascoreBaseUrl() {
-        return pandascoreBaseUrl;
+    public String getBalldontlieBasketballBaseUrl() {
+        return balldontlieBasketballBaseUrl;
     }
 
-    public void setPandascoreBaseUrl(String pandascoreBaseUrl) {
-        this.pandascoreBaseUrl = pandascoreBaseUrl;
+    public void setBalldontlieBasketballBaseUrl(String balldontlieBasketballBaseUrl) {
+        this.balldontlieBasketballBaseUrl = balldontlieBasketballBaseUrl;
     }
 
-    public String getApifootballBaseUrl() {
-        return apifootballBaseUrl;
+    public String getBalldontlieApiKey() {
+        return balldontlieApiKey;
     }
 
-    public void setApifootballBaseUrl(String apifootballBaseUrl) {
-        this.apifootballBaseUrl = apifootballBaseUrl;
-    }
-
-    public String getApifootballApiKey() {
-        return apifootballApiKey;
-    }
-
-    public void setApifootballApiKey(String apifootballApiKey) {
-        this.apifootballApiKey = apifootballApiKey;
-    }
-
-    public String getPandascoreApiKey() {
-        return pandascoreApiKey;
-    }
-
-    public void setPandascoreApiKey(String pandascoreApiKey) {
-        this.pandascoreApiKey = pandascoreApiKey;
+    public void setBalldontlieApiKey(String balldontlieApiKey) {
+        this.balldontlieApiKey = balldontlieApiKey;
     }
 }

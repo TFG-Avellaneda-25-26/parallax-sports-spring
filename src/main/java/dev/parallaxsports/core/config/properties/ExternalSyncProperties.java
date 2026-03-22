@@ -1,5 +1,7 @@
 package dev.parallaxsports.core.config.properties;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -8,10 +10,15 @@ import org.springframework.validation.annotation.Validated;
 public class ExternalSyncProperties {
 
     private boolean enabled = true;
+    @NotBlank
     private String zoneId = "UTC";
+    @NotBlank
     private String dailyCron = "0 30 0 * * *";
+    @Min(0)
     private int yearsBack = 0;
+    @Min(0)
     private int yearsForward = 1;
+    private boolean basketballEnabled = true;
 
     public boolean isEnabled() {
         return enabled;
@@ -52,4 +59,13 @@ public class ExternalSyncProperties {
     public void setYearsForward(int yearsForward) {
         this.yearsForward = yearsForward;
     }
+
+    public boolean isBasketballEnabled() {
+        return basketballEnabled;
+    }
+
+    public void setBasketballEnabled(boolean basketballEnabled) {
+        this.basketballEnabled = basketballEnabled;
+    }
+
 }

@@ -1,34 +1,66 @@
 package dev.parallaxsports.core.config.properties;
 
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties(prefix = "app.alerts")
+@Validated
 public class AlertProperties {
 
+    // ── Constants: implementation details that don't change per environment ──
+
+    private static final String DEFAULT_CHANNEL = "telegram";
+    private static final int DEFAULT_LEAD_TIME_MINUTES = 30;
+    private static final int DISPATCH_BATCH_SIZE = 100;
+    private static final long PENDING_CLAIM_IDLE_MS = 60_000;
+    private static final String KTOR_DISPATCH_PATH = "/internal/alerts/dispatch";
+
+    private static final String TELEGRAM_STREAM = "alerts.telegram.v1";
+    private static final String DISCORD_STREAM = "alerts.discord.v1";
+    private static final String EMAIL_STREAM = "alerts.email.v1";
+    private static final String TELEGRAM_DLQ_STREAM = "alerts.telegram.dlq.v1";
+    private static final String DISCORD_DLQ_STREAM = "alerts.discord.dlq.v1";
+    private static final String EMAIL_DLQ_STREAM = "alerts.email.dlq.v1";
+    private static final String TELEGRAM_CONSUMER_GROUP = "alerts.telegram.workers.v1";
+    private static final String DISCORD_CONSUMER_GROUP = "alerts.discord.workers.v1";
+    private static final String EMAIL_CONSUMER_GROUP = "alerts.email.workers.v1";
+
+    // ── Externalized: toggled/tuned per environment ──
+
     private boolean generationEnabled = true;
-    private String defaultChannel = "telegram";
-    private int defaultLeadTimeMinutes = 30;
-
     private boolean dispatchEnabled = true;
+    @NotBlank
     private String dispatchCron = "0 * * * * *";
-    private int dispatchBatchSize = 100;
-    private String telegramStream = "alerts.telegram.v1";
-    private String discordStream = "alerts.discord.v1";
-    private String emailStream = "alerts.email.v1";
-    private String telegramDlqStream = "alerts.telegram.dlq.v1";
-    private String discordDlqStream = "alerts.discord.dlq.v1";
-    private String emailDlqStream = "alerts.email.dlq.v1";
-    private String telegramConsumerGroup = "alerts.telegram.workers.v1";
-    private String discordConsumerGroup = "alerts.discord.workers.v1";
-    private String emailConsumerGroup = "alerts.email.workers.v1";
-    private long pendingClaimIdleMs = 60000;
     private boolean streamTrimEnabled = true;
-    private long streamMaxLen = 200000;
+    private long streamMaxLen = 200_000;
     private boolean httpFallbackEnabled = false;
-
     private String ktorBaseUrl;
-    private String ktorDispatchPath = "/internal/alerts/dispatch";
     private String ktorApiKey;
+
+    // ── Constant accessors ──
+
+    public String getDefaultChannel() {
+        return DEFAULT_CHANNEL;
+    }
+
+    public int getDefaultLeadTimeMinutes() {
+        return DEFAULT_LEAD_TIME_MINUTES;
+    }
+
+    public int getDispatchBatchSize() {
+        return DISPATCH_BATCH_SIZE;
+    }
+
+    public long getPendingClaimIdleMs() {
+        return PENDING_CLAIM_IDLE_MS;
+    }
+
+    public String getKtorDispatchPath() {
+        return KTOR_DISPATCH_PATH;
+    }
+
+    // ── Externalized accessors ──
 
     public boolean isGenerationEnabled() {
         return generationEnabled;
@@ -36,22 +68,6 @@ public class AlertProperties {
 
     public void setGenerationEnabled(boolean generationEnabled) {
         this.generationEnabled = generationEnabled;
-    }
-
-    public String getDefaultChannel() {
-        return defaultChannel;
-    }
-
-    public void setDefaultChannel(String defaultChannel) {
-        this.defaultChannel = defaultChannel;
-    }
-
-    public int getDefaultLeadTimeMinutes() {
-        return defaultLeadTimeMinutes;
-    }
-
-    public void setDefaultLeadTimeMinutes(int defaultLeadTimeMinutes) {
-        this.defaultLeadTimeMinutes = defaultLeadTimeMinutes;
     }
 
     public boolean isDispatchEnabled() {
@@ -68,94 +84,6 @@ public class AlertProperties {
 
     public void setDispatchCron(String dispatchCron) {
         this.dispatchCron = dispatchCron;
-    }
-
-    public int getDispatchBatchSize() {
-        return dispatchBatchSize;
-    }
-
-    public void setDispatchBatchSize(int dispatchBatchSize) {
-        this.dispatchBatchSize = dispatchBatchSize;
-    }
-
-    public String getTelegramStream() {
-        return telegramStream;
-    }
-
-    public void setTelegramStream(String telegramStream) {
-        this.telegramStream = telegramStream;
-    }
-
-    public String getDiscordStream() {
-        return discordStream;
-    }
-
-    public void setDiscordStream(String discordStream) {
-        this.discordStream = discordStream;
-    }
-
-    public String getEmailStream() {
-        return emailStream;
-    }
-
-    public void setEmailStream(String emailStream) {
-        this.emailStream = emailStream;
-    }
-
-    public String getTelegramDlqStream() {
-        return telegramDlqStream;
-    }
-
-    public void setTelegramDlqStream(String telegramDlqStream) {
-        this.telegramDlqStream = telegramDlqStream;
-    }
-
-    public String getDiscordDlqStream() {
-        return discordDlqStream;
-    }
-
-    public void setDiscordDlqStream(String discordDlqStream) {
-        this.discordDlqStream = discordDlqStream;
-    }
-
-    public String getEmailDlqStream() {
-        return emailDlqStream;
-    }
-
-    public void setEmailDlqStream(String emailDlqStream) {
-        this.emailDlqStream = emailDlqStream;
-    }
-
-    public String getTelegramConsumerGroup() {
-        return telegramConsumerGroup;
-    }
-
-    public void setTelegramConsumerGroup(String telegramConsumerGroup) {
-        this.telegramConsumerGroup = telegramConsumerGroup;
-    }
-
-    public String getDiscordConsumerGroup() {
-        return discordConsumerGroup;
-    }
-
-    public void setDiscordConsumerGroup(String discordConsumerGroup) {
-        this.discordConsumerGroup = discordConsumerGroup;
-    }
-
-    public String getEmailConsumerGroup() {
-        return emailConsumerGroup;
-    }
-
-    public void setEmailConsumerGroup(String emailConsumerGroup) {
-        this.emailConsumerGroup = emailConsumerGroup;
-    }
-
-    public long getPendingClaimIdleMs() {
-        return pendingClaimIdleMs;
-    }
-
-    public void setPendingClaimIdleMs(long pendingClaimIdleMs) {
-        this.pendingClaimIdleMs = pendingClaimIdleMs;
     }
 
     public boolean isStreamTrimEnabled() {
@@ -182,45 +110,6 @@ public class AlertProperties {
         this.httpFallbackEnabled = httpFallbackEnabled;
     }
 
-    public String streamNameForChannel(String channel) {
-        if ("telegram".equalsIgnoreCase(channel)) {
-            return telegramStream;
-        }
-        if ("discord".equalsIgnoreCase(channel)) {
-            return discordStream;
-        }
-        if ("email".equalsIgnoreCase(channel)) {
-            return emailStream;
-        }
-        throw new IllegalArgumentException("Unsupported alert channel: " + channel);
-    }
-
-    public String dlqStreamNameForChannel(String channel) {
-        if ("telegram".equalsIgnoreCase(channel)) {
-            return telegramDlqStream;
-        }
-        if ("discord".equalsIgnoreCase(channel)) {
-            return discordDlqStream;
-        }
-        if ("email".equalsIgnoreCase(channel)) {
-            return emailDlqStream;
-        }
-        throw new IllegalArgumentException("Unsupported alert channel: " + channel);
-    }
-
-    public String consumerGroupForChannel(String channel) {
-        if ("telegram".equalsIgnoreCase(channel)) {
-            return telegramConsumerGroup;
-        }
-        if ("discord".equalsIgnoreCase(channel)) {
-            return discordConsumerGroup;
-        }
-        if ("email".equalsIgnoreCase(channel)) {
-            return emailConsumerGroup;
-        }
-        throw new IllegalArgumentException("Unsupported alert channel: " + channel);
-    }
-
     public String getKtorBaseUrl() {
         return ktorBaseUrl;
     }
@@ -229,19 +118,40 @@ public class AlertProperties {
         this.ktorBaseUrl = ktorBaseUrl;
     }
 
-    public String getKtorDispatchPath() {
-        return ktorDispatchPath;
-    }
-
-    public void setKtorDispatchPath(String ktorDispatchPath) {
-        this.ktorDispatchPath = ktorDispatchPath;
-    }
-
     public String getKtorApiKey() {
         return ktorApiKey;
     }
 
     public void setKtorApiKey(String ktorApiKey) {
         this.ktorApiKey = ktorApiKey;
+    }
+
+    // ── Channel routing ──
+
+    public String streamNameForChannel(String channel) {
+        return switch (channel.toLowerCase()) {
+            case "telegram" -> TELEGRAM_STREAM;
+            case "discord" -> DISCORD_STREAM;
+            case "email" -> EMAIL_STREAM;
+            default -> throw new IllegalArgumentException("Unsupported alert channel: " + channel);
+        };
+    }
+
+    public String dlqStreamNameForChannel(String channel) {
+        return switch (channel.toLowerCase()) {
+            case "telegram" -> TELEGRAM_DLQ_STREAM;
+            case "discord" -> DISCORD_DLQ_STREAM;
+            case "email" -> EMAIL_DLQ_STREAM;
+            default -> throw new IllegalArgumentException("Unsupported alert channel: " + channel);
+        };
+    }
+
+    public String consumerGroupForChannel(String channel) {
+        return switch (channel.toLowerCase()) {
+            case "telegram" -> TELEGRAM_CONSUMER_GROUP;
+            case "discord" -> DISCORD_CONSUMER_GROUP;
+            case "email" -> EMAIL_CONSUMER_GROUP;
+            default -> throw new IllegalArgumentException("Unsupported alert channel: " + channel);
+        };
     }
 }
