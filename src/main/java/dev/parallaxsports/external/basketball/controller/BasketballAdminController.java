@@ -1,5 +1,6 @@
 package dev.parallaxsports.external.basketball.controller;
 
+import dev.parallaxsports.basketball.BasketballLeague;
 import dev.parallaxsports.external.basketball.dto.BasketballSyncResponse;
 import dev.parallaxsports.external.basketball.service.BasketballSyncService;
 import java.time.LocalDate;
@@ -20,10 +21,11 @@ public class BasketballAdminController {
 
     @PostMapping("/sync")
     public ResponseEntity<BasketballSyncResponse> sync(
+        @RequestParam BasketballLeague league,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
         @RequestParam(required = false) Integer maxPages
     ) {
-        return ResponseEntity.ok(basketballSyncService.syncRange(fromDate, toDate, maxPages));
+        return ResponseEntity.ok(basketballSyncService.syncRange(league, fromDate, toDate, maxPages));
     }
 }

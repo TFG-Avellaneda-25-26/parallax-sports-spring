@@ -1,9 +1,7 @@
 package dev.parallaxsports.external.basketball.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import dev.parallaxsports.basketball.service.NbaTeamLogoResolver;
+import dev.parallaxsports.basketball.BasketballLeague;
+import dev.parallaxsports.basketball.service.BasketballTeamLogoResolver;
 import dev.parallaxsports.external.basketball.dto.BalldontlieGameDto;
 import dev.parallaxsports.formula1.model.Competition;
 import dev.parallaxsports.formula1.model.Event;
@@ -23,7 +21,6 @@ import dev.parallaxsports.formula1.repository.SportRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Objects;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +28,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class BasketballSyncWriteService {
 
-    static final String PROVIDER = "balldontlie-basketball";
     private static final String SPORT_KEY = "basketball";
     private static final String SPORT_NAME = "Basketball";
 
@@ -42,18 +38,19 @@ class BasketballSyncWriteService {
     private final ParticipantRepository participantRepository;
     private final EventEntryRepository eventEntryRepository;
     private final MediaAssetRepository mediaAssetRepository;
-    private final ObjectMapper objectMapper;
 
-    int upsertGame(BalldontlieGameDto game) {
-        if (game.id() == null || game.datetime() == null || game.homeTeam() == null || game.visitorTeam() == null) {
+    int upsertGame(BasketballLeague league, BalldontlieGameDto game) {
+        String rawDateTime = resolveDateTime(game);
+        if (game.id() == null || rawDateTime == null || game.homeTeam() == null || game.visitorTeam() == null) {
             return 0;
         }
 
+        String provider = league.getProvider();
         Sport sport = ensureSport();
-        Competition competition = ensureCompetition(sport, game);
+        Competition competition = ensureCompetition(sport, league);
         Season season = ensureSeason(competition, String.valueOf(game.season()));
         String externalId = "game:" + game.id();
-        Event event = eventRepository.findByExternalProviderAndExternalId(PROVIDER, externalId).orElse(null);
+        Event event = eventRepository.findByExternalProviderAndExternalId(provider, externalId).orElse(null);
         boolean created = false;
 
         if (event == null) {
@@ -62,20 +59,19 @@ class BasketballSyncWriteService {
                 .competition(competition)
                 .season(season)
                 .participantsMode("teams")
-                .externalProvider(PROVIDER)
+                .externalProvider(provider)
                 .externalId(externalId)
                 .build();
             created = true;
         }
 
-        OffsetDateTime start = parseDate(game.datetime());
+        OffsetDateTime start = parseDate(rawDateTime);
         boolean changed = false;
         changed |= setIfChanged(event.getName(), gameName(game), event::setName);
         changed |= setIfChanged(event.getEventType(), resolveEventType(game), event::setEventType);
         changed |= setIfChanged(event.getStatus(), normalizeStatus(game.status()), event::setStatus);
         changed |= setIfChanged(event.getStartTimeUtc(), start, event::setStartTimeUtc);
         changed |= setIfChanged(event.getEndTimeUtc(), null, event::setEndTimeUtc);
-        changed |= setIfChanged(event.getMetadata(), buildMetadata(game), event::setMetadata);
 
         if (!sameEntityId(event.getCompetition(), competition)) {
             event.setCompetition(competition);
@@ -86,12 +82,12 @@ class BasketballSyncWriteService {
             changed = true;
         }
         Event savedEvent = (!created && !changed) ? event : eventRepository.save(event);
-        upsertEventParticipants(savedEvent, sport, game);
+        upsertEventParticipants(league, savedEvent, sport, game);
         return (!created && !changed) ? 0 : 1;
     }
 
-    LocalDate latestSyncedDate() {
-        return eventRepository.findFirstByExternalProviderOrderByStartTimeUtcDesc(PROVIDER)
+    LocalDate latestSyncedDate(BasketballLeague league) {
+        return eventRepository.findFirstByExternalProviderOrderByStartTimeUtcDesc(league.getProvider())
             .map(Event::getStartTimeUtc)
             .map(OffsetDateTime::toLocalDate)
             .orElse(null);
@@ -103,8 +99,8 @@ class BasketballSyncWriteService {
         );
     }
 
-    private Competition ensureCompetition(Sport sport, BalldontlieGameDto game) {
-        String competitionName = "NBA";
+    private Competition ensureCompetition(Sport sport, BasketballLeague league) {
+        String competitionName = league.getCompetitionName();
         Competition competition = competitionRepository.findBySportIdAndName(sport.getId(), competitionName).orElse(null);
         boolean created = false;
 
@@ -117,13 +113,9 @@ class BasketballSyncWriteService {
             created = true;
         }
 
-        ObjectNode metadata = objectMapper.createObjectNode();
-        metadata.put("key", "nba");
-
         boolean changed = false;
         changed |= setIfChanged(competition.getCountry(), "United States", competition::setCountry);
         changed |= setIfChanged(competition.getRegion(), "US", competition::setRegion);
-        changed |= setIfChanged(competition.getMetadata(), metadata, competition::setMetadata);
 
         if (!created && !changed) {
             return competition;
@@ -147,54 +139,20 @@ class BasketballSyncWriteService {
         );
     }
 
-    private JsonNode buildMetadata(BalldontlieGameDto game) {
-        ObjectNode root = objectMapper.createObjectNode();
-        root.put("externalGameId", game.id());
-        root.put("postseason", game.postseason());
-        root.put("period", game.period());
-        root.put("time", game.time());
-
-        ObjectNode league = root.putObject("league");
-        league.put("id", 1L);
-        league.put("name", "NBA");
-        league.put("season", String.valueOf(game.season()));
-
-        ObjectNode teams = root.putObject("teams");
-        if (game.homeTeam() != null) {
-            ObjectNode home = teams.putObject("home");
-            home.put("id", game.homeTeam().id());
-            home.put("name", game.homeTeam().fullName());
-            home.put("logo", NbaTeamLogoResolver.resolveLogoUrl(game.homeTeam().abbreviation()));
-        }
-        if (game.visitorTeam() != null) {
-            ObjectNode away = teams.putObject("away");
-            away.put("id", game.visitorTeam().id());
-            away.put("name", game.visitorTeam().fullName());
-            away.put("logo", NbaTeamLogoResolver.resolveLogoUrl(game.visitorTeam().abbreviation()));
-        }
-
-        ObjectNode scores = root.putObject("scores");
-        scores.put("homeTotal", game.homeTeamScore());
-        scores.put("awayTotal", game.visitorTeamScore());
-
-        root.put("venue", (String) null);
-
-        return root;
-    }
-
-    private void upsertEventParticipants(Event event, Sport sport, BalldontlieGameDto game) {
+    private void upsertEventParticipants(BasketballLeague league, Event event, Sport sport, BalldontlieGameDto game) {
         if (event.getId() == null) {
             return;
         }
 
-        Participant home = upsertTeamParticipant(sport, game.homeTeam(), "United States");
-        Participant away = upsertTeamParticipant(sport, game.visitorTeam(), "United States");
+        Participant home = upsertTeamParticipant(league, sport, game.homeTeam(), "United States");
+        Participant away = upsertTeamParticipant(league, sport, game.visitorTeam(), "United States");
 
         upsertEventEntry(event, home, "home", 1);
         upsertEventEntry(event, away, "away", 2);
     }
 
     private Participant upsertTeamParticipant(
+        BasketballLeague league,
         Sport sport,
         BalldontlieGameDto.TeamDto team,
         String country
@@ -204,14 +162,9 @@ class BasketballSyncWriteService {
         }
 
         Participant participant = participantRepository
-            .findBySportIdAndExternalTeamId(sport.getId(), String.valueOf(team.id()))
+            .findBySportIdAndKindAndName(sport.getId(), "team", nullSafe(team.name(), "Unknown Team"))
             .orElse(null);
         boolean created = false;
-
-        if (participant == null) {
-            participant = participantRepository.findBySportIdAndKindAndName(sport.getId(), "team", nullSafe(team.name(), "Unknown Team"))
-                .orElse(null);
-        }
 
         if (participant == null) {
             participant = Participant.builder()
@@ -221,30 +174,22 @@ class BasketballSyncWriteService {
             created = true;
         }
 
-        ObjectNode metadata = participant.getMetadata() instanceof ObjectNode existing
-            ? existing.deepCopy()
-            : objectMapper.createObjectNode();
-        metadata.put("externalTeamId", team.id());
-        metadata.put("abbreviation", team.abbreviation());
-        metadata.put("logo", NbaTeamLogoResolver.resolveLogoUrl(team.abbreviation()));
-
         boolean changed = false;
         changed |= setIfChanged(participant.getName(), nullSafe(team.name(), "Unknown Team"), participant::setName);
-        changed |= setIfChanged(participant.getShortName(), shortName(team.name()), participant::setShortName);
+        changed |= setIfChanged(participant.getShortName(), team.abbreviation(), participant::setShortName);
         changed |= setIfChanged(participant.getCountry(), country, participant::setCountry);
-        changed |= setIfChanged(participant.getMetadata(), metadata, participant::setMetadata);
 
         Participant savedParticipant = (!created && !changed) ? participant : participantRepository.save(participant);
-        upsertParticipantLogo(savedParticipant, team);
+        upsertParticipantLogo(league, savedParticipant, team);
         return savedParticipant;
     }
 
-    private void upsertParticipantLogo(Participant participant, BalldontlieGameDto.TeamDto team) {
+    private void upsertParticipantLogo(BasketballLeague league, Participant participant, BalldontlieGameDto.TeamDto team) {
         if (participant == null || participant.getId() == null || team == null) {
             return;
         }
 
-        String logoUrl = NbaTeamLogoResolver.resolveLogoUrl(team.abbreviation());
+        String logoUrl = BasketballTeamLogoResolver.resolveLogoUrl(league, team.abbreviation());
         if (logoUrl == null || logoUrl.isBlank()) {
             return;
         }
@@ -266,7 +211,7 @@ class BasketballSyncWriteService {
             .url(logoUrl)
             .contentType("image/png")
             .altText(participant.getName() + " team logo")
-            .sourceProvider(PROVIDER)
+            .sourceProvider(league.getProvider())
             .sourceUrl(logoUrl)
             .build();
 
@@ -332,22 +277,26 @@ class BasketballSyncWriteService {
         return Boolean.TRUE.equals(game.postseason()) ? "playoffs" : "game";
     }
 
+    private String resolveDateTime(BalldontlieGameDto game) {
+        if (game.datetime() != null && !game.datetime().isBlank()) {
+            return game.datetime();
+        }
+        if (game.date() != null && !game.date().isBlank()) {
+            return game.date();
+        }
+        return null;
+    }
+
     private OffsetDateTime parseDate(String value) {
-        return OffsetDateTime.parse(value);
+        try {
+            return OffsetDateTime.parse(value);
+        } catch (java.time.DateTimeException ex) {
+            return java.time.Instant.parse(value).atOffset(java.time.ZoneOffset.UTC);
+        }
     }
 
     private String nullSafe(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
-    }
-
-    private String shortName(String name) {
-        if (name == null || name.isBlank()) {
-            return null;
-        }
-        if (name.length() <= 24) {
-            return name;
-        }
-        return name.substring(0, 24);
     }
 
     private boolean sameEntityId(Object left, Object right) {

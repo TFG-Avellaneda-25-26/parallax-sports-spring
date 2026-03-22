@@ -1,9 +1,9 @@
 package dev.parallaxsports.external.basketball.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import dev.parallaxsports.basketball.BasketballLeague;
 import dev.parallaxsports.basketball.dto.BasketballGameResponse;
 import dev.parallaxsports.basketball.dto.BasketballTeamResponse;
-import dev.parallaxsports.basketball.service.NbaTeamLogoResolver;
+import dev.parallaxsports.basketball.service.BasketballTeamLogoResolver;
 import dev.parallaxsports.core.exception.BadRequestException;
 import dev.parallaxsports.core.exception.UpstreamServiceException;
 import dev.parallaxsports.external.basketball.client.BalldontlieBasketballClient;
@@ -13,13 +13,18 @@ import dev.parallaxsports.external.basketball.dto.BalldontlieMetaDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieTeamDto;
 import dev.parallaxsports.external.basketball.dto.BasketballSyncResponse;
 import dev.parallaxsports.formula1.model.Event;
+import dev.parallaxsports.formula1.model.EventEntry;
+import dev.parallaxsports.formula1.repository.EventEntryRepository;
 import dev.parallaxsports.formula1.repository.EventRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,51 +42,59 @@ public class BasketballSyncService {
     private final BalldontlieBasketballClient balldontlieBasketballClient;
     private final BasketballSyncWriteService basketballSyncWriteService;
     private final EventRepository eventRepository;
+    private final EventEntryRepository eventEntryRepository;
 
-    /**
-     * Daily scheduler entry point: syncs from the latest previously synced date forward.
-     */
     @Transactional
-    public BasketballSyncResponse syncSchedulerWindow(LocalDate executionDate) {
-        LocalDate from = resolveStartDate(executionDate);
-        return syncGamesInternal(from, null, DEFAULT_MAX_PAGES);
+    public BasketballSyncResponse syncSchedulerWindow(BasketballLeague league, LocalDate executionDate) {
+        LocalDate from = resolveStartDate(league, executionDate);
+        return syncGamesInternal(league, from, null, DEFAULT_MAX_PAGES);
     }
 
-    /**
-     * Admin entry point: syncs games within a date range with a configurable page budget.
-     */
     @Transactional
-    public BasketballSyncResponse syncRange(LocalDate fromDate, LocalDate toDate, Integer maxPages) {
+    public BasketballSyncResponse syncRange(BasketballLeague league, LocalDate fromDate, LocalDate toDate, Integer maxPages) {
         if (fromDate == null) {
             throw new BadRequestException("fromDate is required");
         }
         int budget = maxPages != null && maxPages > 0 ? maxPages : DEFAULT_MAX_PAGES;
-        return syncGamesInternal(fromDate, toDate, budget);
+        return syncGamesInternal(league, fromDate, toDate, budget);
     }
 
     @Transactional(readOnly = true)
-    public List<BasketballGameResponse> getGames(LocalDate fromDate, LocalDate toDate) {
+    public List<BasketballGameResponse> getGames(BasketballLeague league, LocalDate fromDate, LocalDate toDate) {
         OffsetDateTime from = fromDate.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
         OffsetDateTime to = toDate.plusDays(1).atStartOfDay().atOffset(OffsetDateTime.now().getOffset()).minusNanos(1);
 
-        return eventRepository.findByExternalProviderAndStartTimeUtcBetweenOrderByStartTimeUtcAsc(
-                BasketballSyncWriteService.PROVIDER,
-                from,
-                to
-            )
+        List<String> providers = league != null
+            ? List.of(league.getProvider())
+            : Arrays.stream(BasketballLeague.values()).map(BasketballLeague::getProvider).toList();
+
+        List<Event> events = eventRepository.findWithCompetitionByProvidersAndTimeBetween(providers, from, to);
+
+        if (events.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> eventIds = events.stream().map(Event::getId).collect(Collectors.toSet());
+        Map<Long, List<EventEntry>> entriesByEvent = eventEntryRepository.findWithParticipantByEventIdIn(eventIds)
             .stream()
-            .map(this::toResponse)
+            .collect(Collectors.groupingBy(ee -> ee.getId().getEventId()));
+
+        return events.stream()
+            .map(event -> toResponse(event, entriesByEvent.getOrDefault(event.getId(), List.of())))
             .toList();
     }
 
-    public List<BasketballTeamResponse> getTeams() {
+    public List<BasketballTeamResponse> getTeams(BasketballLeague league) {
         List<BasketballTeamResponse> all = new ArrayList<>();
         Long cursor = null;
 
         do {
-            BalldontlieEnvelopeDto<BalldontlieTeamDto> envelope = balldontlieBasketballClient.fetchTeamsPage(cursor);
+            BalldontlieEnvelopeDto<BalldontlieTeamDto> envelope = balldontlieBasketballClient.fetchTeamsPage(league, cursor);
             List<BalldontlieTeamDto> teams = envelope.data() == null ? List.of() : envelope.data();
             for (BalldontlieTeamDto team : teams) {
+                if (team.conference() == null || team.conference().isBlank()) {
+                    continue;
+                }
                 all.add(new BasketballTeamResponse(
                     team.id(),
                     team.name(),
@@ -90,7 +103,7 @@ public class BasketballSyncService {
                     team.conference(),
                     team.division(),
                     team.city(),
-                    NbaTeamLogoResolver.resolveLogoUrl(team.abbreviation())
+                    BasketballTeamLogoResolver.resolveLogoUrl(league, team.abbreviation())
                 ));
             }
             BalldontlieMetaDto meta = envelope.meta();
@@ -100,7 +113,7 @@ public class BasketballSyncService {
         return all;
     }
 
-    private BasketballSyncResponse syncGamesInternal(LocalDate fromDate, LocalDate toDate, int maxPages) {
+    private BasketballSyncResponse syncGamesInternal(BasketballLeague league, LocalDate fromDate, LocalDate toDate, int maxPages) {
         int pagesUsed = 0;
         int gamesFetched = 0;
         int gamesUpserted = 0;
@@ -113,13 +126,13 @@ public class BasketballSyncService {
             BalldontlieEnvelopeDto<BalldontlieGameDto> envelope;
             try {
                 envelope = toDate != null
-                    ? balldontlieBasketballClient.fetchGamesPage(fromDate, toDate, cursor)
-                    : balldontlieBasketballClient.fetchGamesPage(fromDate, cursor);
+                    ? balldontlieBasketballClient.fetchGamesPage(league, fromDate, toDate, cursor)
+                    : balldontlieBasketballClient.fetchGamesPage(league, fromDate, cursor);
             } catch (UpstreamServiceException ex) {
                 if (isRateLimit(ex)) {
                     stoppedByRateLimit = true;
-                    log.warn("Basketball sync rate-limited after {} pages startDate={} cursor={}",
-                        pagesUsed, fromDate, cursor);
+                    log.warn("Basketball sync rate-limited league={} after {} pages startDate={} cursor={}",
+                        league, pagesUsed, fromDate, cursor);
                     break;
                 }
                 throw ex;
@@ -130,7 +143,7 @@ public class BasketballSyncService {
             gamesFetched += games.size();
 
             for (BalldontlieGameDto game : games) {
-                gamesUpserted += basketballSyncWriteService.upsertGame(game);
+                gamesUpserted += basketballSyncWriteService.upsertGame(league, game);
                 LocalDate gameDate = parseGameDate(game);
                 if (gameDate != null) {
                     distinctDates.add(gameDate);
@@ -150,8 +163,8 @@ public class BasketballSyncService {
         boolean incomplete = (pagesUsed >= maxPages && cursor != null) || stoppedByRateLimit;
 
         log.info(
-            "Basketball sync finished fromDate={} toDate={} pagesUsed={}/{} datesSynced={} gamesFetched={} gamesUpserted={} incomplete={} rateLimited={}",
-            fromDate, toDate, pagesUsed, maxPages, distinctDates.size(), gamesFetched, gamesUpserted, incomplete, stoppedByRateLimit
+            "Basketball sync finished league={} fromDate={} toDate={} pagesUsed={}/{} datesSynced={} gamesFetched={} gamesUpserted={} incomplete={} rateLimited={}",
+            league, fromDate, toDate, pagesUsed, maxPages, distinctDates.size(), gamesFetched, gamesUpserted, incomplete, stoppedByRateLimit
         );
 
         return new BasketballSyncResponse(
@@ -182,8 +195,8 @@ public class BasketballSyncService {
         return false;
     }
 
-    private LocalDate resolveStartDate(LocalDate executionDate) {
-        LocalDate latest = basketballSyncWriteService.latestSyncedDate();
+    private LocalDate resolveStartDate(BasketballLeague league, LocalDate executionDate) {
+        LocalDate latest = basketballSyncWriteService.latestSyncedDate(league);
         return latest == null ? executionDate : latest;
     }
 
@@ -198,41 +211,44 @@ public class BasketballSyncService {
         }
     }
 
-    private BasketballGameResponse toResponse(Event event) {
-        JsonNode metadata = event.getMetadata();
-        JsonNode league = metadata == null ? null : metadata.path("league");
-        JsonNode teams = metadata == null ? null : metadata.path("teams");
-        JsonNode scores = metadata == null ? null : metadata.path("scores");
+    private BasketballGameResponse toResponse(Event event, List<EventEntry> entries) {
+        var competition = event.getCompetition();
+        BasketballLeague league = BasketballLeague.fromCompetitionName(
+            competition != null ? competition.getName() : null
+        );
+
+        String homeTeam = null;
+        Long homeTeamId = null;
+        String homeTeamLogo = null;
+        String awayTeam = null;
+        Long awayTeamId = null;
+        String awayTeamLogo = null;
+
+        for (EventEntry entry : entries) {
+            if ("home".equals(entry.getSide())) {
+                homeTeamId = entry.getParticipant().getId();
+                homeTeam = entry.getParticipant().getName();
+                homeTeamLogo = BasketballTeamLogoResolver.resolveLogoUrl(league, entry.getParticipant().getShortName());
+            } else if ("away".equals(entry.getSide())) {
+                awayTeamId = entry.getParticipant().getId();
+                awayTeam = entry.getParticipant().getName();
+                awayTeamLogo = BasketballTeamLogoResolver.resolveLogoUrl(league, entry.getParticipant().getShortName());
+            }
+        }
 
         return new BasketballGameResponse(
             event.getId(),
-            metadata == null ? null : metadata.path("externalGameId").asLong(),
             event.getStartTimeUtc(),
             event.getStatus(),
-            league == null ? null : asLongOrNull(league.path("id")),
-            league == null ? null : asTextOrNull(league.path("name")),
-            league == null ? null : asTextOrNull(league.path("season")),
-            teams == null ? null : asLongOrNull(teams.path("home").path("id")),
-            teams == null ? null : asTextOrNull(teams.path("home").path("name")),
-            teams == null ? null : asTextOrNull(teams.path("home").path("logo")),
-            scores == null ? null : asIntOrNull(scores.path("homeTotal")),
-            teams == null ? null : asLongOrNull(teams.path("away").path("id")),
-            teams == null ? null : asTextOrNull(teams.path("away").path("name")),
-            teams == null ? null : asTextOrNull(teams.path("away").path("logo")),
-            scores == null ? null : asIntOrNull(scores.path("awayTotal")),
-            metadata == null ? null : asTextOrNull(metadata.path("venue"))
+            event.getEventType(),
+            competition != null ? competition.getId() : null,
+            competition != null ? competition.getName() : null,
+            homeTeamId,
+            homeTeam,
+            homeTeamLogo,
+            awayTeamId,
+            awayTeam,
+            awayTeamLogo
         );
-    }
-
-    private Long asLongOrNull(JsonNode node) {
-        return node == null || node.isMissingNode() || node.isNull() ? null : node.asLong();
-    }
-
-    private Integer asIntOrNull(JsonNode node) {
-        return node == null || node.isMissingNode() || node.isNull() ? null : node.asInt();
-    }
-
-    private String asTextOrNull(JsonNode node) {
-        return node == null || node.isMissingNode() || node.isNull() ? null : node.asText();
     }
 }

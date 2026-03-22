@@ -31,7 +31,7 @@ app:
     refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:86400}
   external-api:
     openf1-base-url: ${OPENF1_BASE_URL:https://api.openf1.org/v1}
-    balldontlie-basketball-base-url: ${BALLDONTLIE_BASKETBALL_BASE_URL:https://api.balldontlie.io/v1}
+    balldontlie-base-url: ${BALLDONTLIE_BASE_URL:https://api.balldontlie.io}
     balldontlie-api-key: ${BALLDONTLIE_API_KEY:}
   external-sync:
     enabled: ${EXTERNAL_SYNC_ENABLED:true}
@@ -39,7 +39,8 @@ app:
     daily-cron: ${EXTERNAL_SYNC_DAILY_CRON:0 30 0 * * *}
     years-back: ${EXTERNAL_SYNC_YEARS_BACK:0}
     years-forward: ${EXTERNAL_SYNC_YEARS_FORWARD:1}
-    basketball-enabled: ${EXTERNAL_SYNC_BASKETBALL_ENABLED:true}
+    nba-enabled: ${EXTERNAL_SYNC_NBA_ENABLED:true}
+    wnba-enabled: ${EXTERNAL_SYNC_WNBA_ENABLED:true}
   alerts:
     generation-enabled: ${ALERTS_GENERATION_ENABLED:true}
     dispatch-enabled: ${ALERTS_DISPATCH_ENABLED:false}

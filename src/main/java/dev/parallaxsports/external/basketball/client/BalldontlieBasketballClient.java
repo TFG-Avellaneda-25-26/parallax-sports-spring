@@ -2,6 +2,7 @@ package dev.parallaxsports.external.basketball.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.parallaxsports.basketball.BasketballLeague;
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.core.exception.SystemConfigurationException;
 import dev.parallaxsports.core.exception.UpstreamServiceException;
@@ -33,26 +34,24 @@ public class BalldontlieBasketballClient {
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
-// TODO I have to check if this is the best strat for caching and not rebuilding per call
     @PostConstruct
     void init() {
         this.restClient = restClientBuilder
-            .baseUrl(externalApiProperties.getBalldontlieBasketballBaseUrl())
+            .baseUrl(externalApiProperties.getBalldontlieBaseUrl())
             .build();
     }
 
-    public BalldontlieEnvelopeDto<BalldontlieGameDto> fetchGamesPage(LocalDate startDate, Long cursor) {
+    public BalldontlieEnvelopeDto<BalldontlieGameDto> fetchGamesPage(BasketballLeague league, LocalDate startDate, Long cursor) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("start_date", startDate.toString());
         params.put("per_page", String.valueOf(MAX_PAGE_SIZE));
         if (cursor != null) {
             params.put("cursor", String.valueOf(cursor));
         }
-        return get("/games", params, new TypeReference<>() {});
+        return get(league, "/games", params, new TypeReference<>() {});
     }
 
-  
-    public BalldontlieEnvelopeDto<BalldontlieGameDto> fetchGamesPage(LocalDate startDate, LocalDate endDate, Long cursor) {
+    public BalldontlieEnvelopeDto<BalldontlieGameDto> fetchGamesPage(BasketballLeague league, LocalDate startDate, LocalDate endDate, Long cursor) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("start_date", startDate.toString());
         params.put("end_date", endDate.toString());
@@ -60,20 +59,20 @@ public class BalldontlieBasketballClient {
         if (cursor != null) {
             params.put("cursor", String.valueOf(cursor));
         }
-        return get("/games", params, new TypeReference<>() {});
+        return get(league, "/games", params, new TypeReference<>() {});
     }
 
- 
-    public BalldontlieEnvelopeDto<BalldontlieTeamDto> fetchTeamsPage(Long cursor) {
+    public BalldontlieEnvelopeDto<BalldontlieTeamDto> fetchTeamsPage(BasketballLeague league, Long cursor) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("per_page", String.valueOf(MAX_PAGE_SIZE));
         if (cursor != null) {
             params.put("cursor", String.valueOf(cursor));
         }
-        return get("/teams", params, new TypeReference<>() {});
+        return get(league, "/teams", params, new TypeReference<>() {});
     }
 
     private <T> BalldontlieEnvelopeDto<T> get(
+        BasketballLeague league,
         String path,
         Map<String, String> queryParams,
         TypeReference<BalldontlieEnvelopeDto<T>> type
@@ -83,11 +82,13 @@ public class BalldontlieBasketballClient {
             throw new SystemConfigurationException("app.external-api.balldontlie-api-key must be configured");
         }
 
+        String fullPath = "/" + league.getApiPathPrefix() + path;
+
         try {
             String rawBody = restClient
                 .get()
                 .uri(uriBuilder -> {
-                    var builder = uriBuilder.path(path);
+                    var builder = uriBuilder.path(fullPath);
                     queryParams.forEach(builder::queryParam);
                     return builder.build();
                 })

@@ -11,7 +11,7 @@ public class ExternalApiProperties {
     @NotBlank
     private String openf1BaseUrl;
     @NotBlank
-    private String balldontlieBasketballBaseUrl;
+    private String balldontlieBaseUrl;
     private String balldontlieApiKey;
 
     public String getOpenf1BaseUrl() {
@@ -22,12 +22,12 @@ public class ExternalApiProperties {
         this.openf1BaseUrl = openf1BaseUrl;
     }
 
-    public String getBalldontlieBasketballBaseUrl() {
-        return balldontlieBasketballBaseUrl;
+    public String getBalldontlieBaseUrl() {
+        return balldontlieBaseUrl;
     }
 
-    public void setBalldontlieBasketballBaseUrl(String balldontlieBasketballBaseUrl) {
-        this.balldontlieBasketballBaseUrl = balldontlieBasketballBaseUrl;
+    public void setBalldontlieBaseUrl(String balldontlieBaseUrl) {
+        this.balldontlieBaseUrl = balldontlieBaseUrl;
     }
 
     public String getBalldontlieApiKey() {

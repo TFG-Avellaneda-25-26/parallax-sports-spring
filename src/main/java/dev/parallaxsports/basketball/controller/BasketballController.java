@@ -1,5 +1,6 @@
 package dev.parallaxsports.basketball.controller;
 
+import dev.parallaxsports.basketball.BasketballLeague;
 import dev.parallaxsports.basketball.dto.BasketballGameResponse;
 import dev.parallaxsports.basketball.dto.BasketballTeamResponse;
 import dev.parallaxsports.external.basketball.service.BasketballSyncService;
@@ -22,13 +23,16 @@ public class BasketballController {
     @GetMapping("/games")
     public List<BasketballGameResponse> games(
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+        @RequestParam(required = false) BasketballLeague league
     ) {
-        return basketballSyncService.getGames(fromDate, toDate);
+        return basketballSyncService.getGames(league, fromDate, toDate);
     }
 
     @GetMapping("/teams")
-    public List<BasketballTeamResponse> teams() {
-        return basketballSyncService.getTeams();
+    public List<BasketballTeamResponse> teams(
+        @RequestParam(defaultValue = "NBA") BasketballLeague league
+    ) {
+        return basketballSyncService.getTeams(league);
     }
 }

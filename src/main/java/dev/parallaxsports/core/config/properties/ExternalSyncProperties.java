@@ -18,7 +18,8 @@ public class ExternalSyncProperties {
     private int yearsBack = 0;
     @Min(0)
     private int yearsForward = 1;
-    private boolean basketballEnabled = true;
+    private boolean nbaEnabled = true;
+    private boolean wnbaEnabled = true;
 
     public boolean isEnabled() {
         return enabled;
@@ -60,12 +61,20 @@ public class ExternalSyncProperties {
         this.yearsForward = yearsForward;
     }
 
-    public boolean isBasketballEnabled() {
-        return basketballEnabled;
+    public boolean isNbaEnabled() {
+        return nbaEnabled;
     }
 
-    public void setBasketballEnabled(boolean basketballEnabled) {
-        this.basketballEnabled = basketballEnabled;
+    public void setNbaEnabled(boolean nbaEnabled) {
+        this.nbaEnabled = nbaEnabled;
+    }
+
+    public boolean isWnbaEnabled() {
+        return wnbaEnabled;
+    }
+
+    public void setWnbaEnabled(boolean wnbaEnabled) {
+        this.wnbaEnabled = wnbaEnabled;
     }
 
 }
