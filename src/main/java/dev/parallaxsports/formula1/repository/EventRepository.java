@@ -1,6 +1,7 @@
 package dev.parallaxsports.formula1.repository;
 
 import dev.parallaxsports.formula1.model.Event;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +14,22 @@ public interface EventRepository extends JpaRepository<Event, Long> {
         String externalProvider,
         String externalIdPrefix,
         Long seasonId
+    );
+
+    Optional<Event> findFirstByExternalProviderAndEventTypeOrderByStartTimeUtcDesc(String externalProvider, String eventType);
+
+    Optional<Event> findFirstByExternalProviderOrderByStartTimeUtcDesc(String externalProvider);
+
+    List<Event> findByExternalProviderAndEventTypeAndStartTimeUtcBetweenOrderByStartTimeUtcAsc(
+        String externalProvider,
+        String eventType,
+        OffsetDateTime from,
+        OffsetDateTime to
+    );
+
+    List<Event> findByExternalProviderAndStartTimeUtcBetweenOrderByStartTimeUtcAsc(
+        String externalProvider,
+        OffsetDateTime from,
+        OffsetDateTime to
     );
 }
