@@ -1,5 +1,9 @@
 package dev.parallaxsports.external.basketball.service;
 
+import static dev.parallaxsports.external.sync.SyncWriteHelper.nullSafe;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.sameEntityId;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
+
 import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.sport.basketball.service.BasketballTeamLogoResolver;
 import dev.parallaxsports.external.basketball.dto.BalldontlieGameDto;
@@ -295,31 +299,4 @@ class BasketballSyncWriteService {
         }
     }
 
-    private String nullSafe(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
-    }
-
-    private boolean sameEntityId(Object left, Object right) {
-        if (left == null && right == null) {
-            return true;
-        }
-        if (left == null || right == null) {
-            return false;
-        }
-        if (left instanceof Competition leftCompetition && right instanceof Competition rightCompetition) {
-            return Objects.equals(leftCompetition.getId(), rightCompetition.getId());
-        }
-        if (left instanceof Season leftSeason && right instanceof Season rightSeason) {
-            return Objects.equals(leftSeason.getId(), rightSeason.getId());
-        }
-        return false;
-    }
-
-    private <T> boolean setIfChanged(T current, T next, java.util.function.Consumer<T> setter) {
-        if (Objects.equals(current, next)) {
-            return false;
-        }
-        setter.accept(next);
-        return true;
-    }
 }
