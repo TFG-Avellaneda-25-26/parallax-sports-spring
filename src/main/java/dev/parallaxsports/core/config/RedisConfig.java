@@ -15,7 +15,6 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Serializadores
         RedisSerializer<String> keySerializer = RedisSerializer.string();
         RedisSerializer<Object> valueSerializer = RedisSerializer.json();
 
