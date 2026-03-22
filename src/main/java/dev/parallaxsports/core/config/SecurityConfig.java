@@ -31,7 +31,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/error", "/actuator/health/**", "/actuator/info", "/actuator/prometheus", "/v3/api-docs/**", "/swagger-ui/**", "/api/auth/**", "/api/formula1/**").permitAll()
+                .requestMatchers("/error").permitAll()
+                .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/formula1/**", "/api/basketball/**").permitAll()
                 .requestMatchers("/api/internal/alerts/**").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -39,11 +43,8 @@ public class SecurityConfig {
             )
             // Replaces default/basic auth with our DB-backed user lookup + password encoder.
             .authenticationProvider(authenticationProvider())
-            // Runs before username/password filter to build SecurityContext from Bearer JWT.
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Note: httpBasic was intentionally removed. With JWT, sending username/password
-        // every request is unnecessary and less secure than short-lived signed access tokens.
         log.info("Security filter chain initialized: stateless JWT with ADMIN route protection");
 
         return http.build();
