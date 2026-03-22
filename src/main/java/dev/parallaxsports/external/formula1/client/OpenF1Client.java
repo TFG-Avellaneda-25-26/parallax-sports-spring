@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 @Component
@@ -18,11 +19,16 @@ public class OpenF1Client {
     private final ExternalApiProperties externalApiProperties;
 
     public List<OpenF1MeetingDto> fetchMeetings(int year) {
-        OpenF1MeetingDto[] body = restClient()
-            .get()
-            .uri(uriBuilder -> uriBuilder.path("/meetings").queryParam("year", year).build())
-            .retrieve()
-            .body(OpenF1MeetingDto[].class);
+        OpenF1MeetingDto[] body;
+        try {
+            body = restClient()
+                .get()
+                .uri(uriBuilder -> uriBuilder.path("/meetings").queryParam("year", year).build())
+                .retrieve()
+                .body(OpenF1MeetingDto[].class);
+        } catch (HttpClientErrorException.NotFound ex) {
+            return Collections.emptyList();
+        }
 
         if (body == null) {
             return Collections.emptyList();
@@ -31,11 +37,16 @@ public class OpenF1Client {
     }
 
     public List<OpenF1SessionDto> fetchSessions(int year) {
-        OpenF1SessionDto[] body = restClient()
-            .get()
-            .uri(uriBuilder -> uriBuilder.path("/sessions").queryParam("year", year).build())
-            .retrieve()
-            .body(OpenF1SessionDto[].class);
+        OpenF1SessionDto[] body;
+        try {
+            body = restClient()
+                .get()
+                .uri(uriBuilder -> uriBuilder.path("/sessions").queryParam("year", year).build())
+                .retrieve()
+                .body(OpenF1SessionDto[].class);
+        } catch (HttpClientErrorException.NotFound ex) {
+            return Collections.emptyList();
+        }
 
         if (body == null) {
             return Collections.emptyList();
