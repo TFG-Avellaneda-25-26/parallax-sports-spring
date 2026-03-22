@@ -4,6 +4,7 @@ import dev.parallaxsports.core.config.properties.AlertProperties;
 import dev.parallaxsports.follow.model.UserSportFollow;
 import dev.parallaxsports.follow.model.UserSportNotificationChannel;
 import dev.parallaxsports.follow.model.UserSportSettings;
+import dev.parallaxsports.formula1.repository.EventEntryRepository;
 import dev.parallaxsports.follow.repository.UserSportFollowRepository;
 import dev.parallaxsports.follow.repository.UserSportNotificationChannelRepository;
 import dev.parallaxsports.follow.repository.UserSportSettingsRepository;
@@ -12,7 +13,6 @@ import dev.parallaxsports.notification.model.UserEventAlert;
 import dev.parallaxsports.notification.repository.UserEventAlertRepository;
 import dev.parallaxsports.user.repository.UserRepository;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,10 +40,12 @@ public class UserEventAlertGenerationService {
 
     private static final String SCHEDULED = "scheduled";
     private static final String WAITING_ARTIFACT = "waiting_artifact";
+    private static final Set<String> UPDATABLE_STATUSES = Set.of(SCHEDULED, WAITING_ARTIFACT);
 
     private final UserSportSettingsRepository userSportSettingsRepository;
     private final UserSportFollowRepository userSportFollowRepository;
     private final UserSportNotificationChannelRepository userSportNotificationChannelRepository;
+    private final EventEntryRepository eventEntryRepository;
     private final UserEventAlertRepository userEventAlertRepository;
     private final UserRepository userRepository;
     private final AlertProperties alertProperties;
@@ -184,8 +186,10 @@ public class UserEventAlertGenerationService {
             return Objects.equals(eventCompetitionId, follow.getCompetitionId());
         }
         if ("participant".equalsIgnoreCase(followType)) {
-            // Participant-level matching requires event_entries mapping and is not yet available in domain entities.
-            return false;
+            if (event.getId() == null || follow.getParticipantId() == null) {
+                return false;
+            }
+            return eventEntryRepository.existsByIdEventIdAndIdParticipantId(event.getId(), follow.getParticipantId());
         }
         return false;
     }
@@ -231,6 +235,9 @@ public class UserEventAlertGenerationService {
         userEventAlertRepository
             .findByUser_IdAndEventIdAndChannelAndLeadTimeMinutes(userId, eventId, channel, leadTimeMinutes)
             .ifPresentOrElse(existing -> {
+                if (!UPDATABLE_STATUSES.contains(existing.getStatus())) {
+                    return;
+                }
                 existing.setSendAtUtc(sendAtUtc);
                 existing.setIdempotencyKey(idempotencyKey);
                 existing.setArtifactRequired(artifactRequired);
@@ -261,16 +268,14 @@ public class UserEventAlertGenerationService {
      * @param configuredChannel raw channel value
      * @return normalized channel, defaulting to telegram
      */
+    private static final Set<String> SUPPORTED_CHANNELS = Set.of("telegram", "discord", "email");
+
     private String normalizeChannel(String configuredChannel) {
         if (configuredChannel == null || configuredChannel.isBlank()) {
             return "telegram";
         }
 
         String normalized = configuredChannel.toLowerCase();
-        List<String> allowed = new ArrayList<>();
-        allowed.add("telegram");
-        allowed.add("discord");
-        allowed.add("email");
-        return allowed.contains(normalized) ? normalized : "telegram";
+        return SUPPORTED_CHANNELS.contains(normalized) ? normalized : "telegram";
     }
 }

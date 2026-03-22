@@ -4,6 +4,7 @@ import dev.parallaxsports.core.config.properties.AlertProperties;
 import dev.parallaxsports.core.exception.SystemConfigurationException;
 import dev.parallaxsports.core.exception.UpstreamServiceException;
 import dev.parallaxsports.notification.model.UserEventAlert;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,15 @@ public class KtorAlertDispatchClient {
 
     private final RestClient.Builder restClientBuilder;
     private final AlertProperties alertProperties;
+    private RestClient restClient;
+
+    @PostConstruct
+    void init() {
+        String baseUrl = alertProperties.getKtorBaseUrl();
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            this.restClient = restClientBuilder.baseUrl(baseUrl).build();
+        }
+    }
 
     /**
      * Sends a dispatch request to Ktor for one alert.
@@ -28,15 +38,13 @@ public class KtorAlertDispatchClient {
      * @param alert alert lifecycle row to dispatch
      */
     public void dispatch(UserEventAlert alert) {
-        String baseUrl = alertProperties.getKtorBaseUrl();
-        if (baseUrl == null || baseUrl.isBlank()) {
+        if (restClient == null) {
             throw new SystemConfigurationException("app.alerts.ktor-base-url must be configured for dispatch");
         }
 
-        RestClient restClient = restClientBuilder.baseUrl(baseUrl).build();
         AlertDispatchRequest payload = new AlertDispatchRequest(
             alert.getId(),
-            alert.getUser().getId(),
+            alert.getUserId(),
             alert.getEventId(),
             alert.getChannel(),
             alert.getLeadTimeMinutes(),

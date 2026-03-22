@@ -52,7 +52,7 @@ public class AlertStreamPayloadBuilder {
     private void appendBasePayload(Map<String, String> payload, UserEventAlert alert) {
         AlertStreamPayloadField.SCHEMA_VERSION.put(payload, PAYLOAD_SCHEMA_VERSION);
         AlertStreamPayloadField.ALERT_ID.put(payload, alert.getId());
-        AlertStreamPayloadField.USER_ID.put(payload, alert.getUser().getId());
+        AlertStreamPayloadField.USER_ID.put(payload, alert.getUserId());
         AlertStreamPayloadField.EVENT_ID.put(payload, alert.getEventId());
         AlertStreamPayloadField.CHANNEL.put(payload, alert.getChannel());
         AlertStreamPayloadField.SEND_AT_UTC.put(payload, String.valueOf(alert.getSendAtUtc()));

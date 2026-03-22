@@ -77,11 +77,7 @@ public class UserEventAlertDispatchScheduler {
                 try {
                     Event event = eventsById.get(alert.getEventId());
                     String streamMessageId = alertStreamPublisher.publish(streamName, alert, event);
-                    alert.setStatus(QUEUED);
-                    alert.setStreamName(streamName);
                     alert.setStreamMessageId(streamMessageId);
-                    alert.setDispatchedAtUtc(now);
-                    alert.setQueuedAtUtc(now);
                     queuedCount++;
                 } catch (Exception ex) {
                     if (tryHttpFallbackDispatch(alert, now, ex)) {
@@ -127,13 +123,8 @@ public class UserEventAlertDispatchScheduler {
 
         try {
             ktorAlertDispatchClient.dispatch(alert);
-            alert.setStatus(QUEUED);
             alert.setStreamName(HTTP_FALLBACK_STREAM);
             alert.setStreamMessageId(null);
-            alert.setDispatchedAtUtc(now);
-            alert.setQueuedAtUtc(now);
-            alert.setLastError(null);
-            alert.setLastErrorCode(null);
             log.warn(
                 "Alert Redis publish failed; HTTP fallback dispatched alertId={} channel={} reason={}",
                 alert.getId(),
