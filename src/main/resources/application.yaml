@@ -1,0 +1,69 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST://localhost}
+      port: 6379
+      password:
+      timeout: 2000
+
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 2
+          max-wait: 2000ms
+  application:
+    name: parallax-sports-api
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:12345}
+  jpa:
+    open-in-view: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
+    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
+    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:86400}
+  external-api:
+    openf1-base-url: ${OPENF1_BASE_URL:https://api.openf1.org/v1}
+    balldontlie-base-url: ${BALLDONTLIE_BASE_URL:https://api.balldontlie.io}
+    balldontlie-api-key: ${BALLDONTLIE_API_KEY:}
+  external-sync:
+    enabled: ${EXTERNAL_SYNC_ENABLED:true}
+    zone-id: ${EXTERNAL_SYNC_ZONE_ID:UTC}
+    daily-cron: ${EXTERNAL_SYNC_DAILY_CRON:0 30 0 * * *}
+    years-back: ${EXTERNAL_SYNC_YEARS_BACK:0}
+    years-forward: ${EXTERNAL_SYNC_YEARS_FORWARD:1}
+    nba-enabled: ${EXTERNAL_SYNC_NBA_ENABLED:true}
+    wnba-enabled: ${EXTERNAL_SYNC_WNBA_ENABLED:true}
+  alerts:
+    generation-enabled: ${ALERTS_GENERATION_ENABLED:true}
+    dispatch-enabled: ${ALERTS_DISPATCH_ENABLED:false}
+    dispatch-cron: ${ALERTS_DISPATCH_CRON:0 * * * * *}
+    stream-trim-enabled: ${ALERTS_STREAM_TRIM_ENABLED:true}
+    stream-max-len: ${ALERTS_STREAM_MAX_LEN:200000}
+    http-fallback-enabled: ${ALERTS_HTTP_FALLBACK_ENABLED:false}
+    ktor-base-url: ${KTOR_ALERTS_BASE_URL:}
+    ktor-api-key: ${KTOR_ALERTS_API_KEY:}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+observability:
+  loki-url: ${LOKI_URL:http://localhost:3100}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,mappings,conditions
