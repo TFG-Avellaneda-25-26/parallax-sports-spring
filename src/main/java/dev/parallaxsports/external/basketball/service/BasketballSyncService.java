@@ -1,9 +1,9 @@
 package dev.parallaxsports.external.basketball.service;
 
-import dev.parallaxsports.basketball.BasketballLeague;
-import dev.parallaxsports.basketball.dto.BasketballGameResponse;
-import dev.parallaxsports.basketball.dto.BasketballTeamResponse;
-import dev.parallaxsports.basketball.service.BasketballTeamLogoResolver;
+import dev.parallaxsports.sport.basketball.BasketballLeague;
+import dev.parallaxsports.sport.basketball.dto.BasketballGameResponse;
+import dev.parallaxsports.sport.basketball.dto.BasketballTeamResponse;
+import dev.parallaxsports.sport.basketball.service.BasketballTeamLogoResolver;
 import dev.parallaxsports.core.exception.BadRequestException;
 import dev.parallaxsports.core.exception.UpstreamServiceException;
 import dev.parallaxsports.external.basketball.client.BalldontlieBasketballClient;
@@ -12,10 +12,10 @@ import dev.parallaxsports.external.basketball.dto.BalldontlieGameDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieMetaDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieTeamDto;
 import dev.parallaxsports.external.basketball.dto.BasketballSyncResponse;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.model.EventEntry;
-import dev.parallaxsports.formula1.repository.EventEntryRepository;
-import dev.parallaxsports.formula1.repository.EventRepository;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.model.EventEntry;
+import dev.parallaxsports.sport.repository.EventEntryRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;

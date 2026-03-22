@@ -1,6 +1,6 @@
 package dev.parallaxsports.notification.integration.stream;
 
-import dev.parallaxsports.formula1.model.Event;
+import dev.parallaxsports.sport.model.Event;
 import dev.parallaxsports.notification.model.UserEventAlert;
 import java.util.HashMap;
 import java.util.Map;

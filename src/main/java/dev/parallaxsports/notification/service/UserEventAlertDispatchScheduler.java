@@ -1,8 +1,8 @@
 package dev.parallaxsports.notification.service;
 
 import dev.parallaxsports.core.config.properties.AlertProperties;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.repository.EventRepository;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.notification.client.KtorAlertDispatchClient;
 import dev.parallaxsports.notification.model.UserEventAlert;
 import dev.parallaxsports.notification.repository.UserEventAlertRepository;

@@ -3,7 +3,7 @@ package dev.parallaxsports.notification.service;
 import dev.parallaxsports.core.exception.BadRequestException;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.core.exception.StateConflictException;
-import dev.parallaxsports.formula1.repository.EventRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.notification.dto.AlertArtifactCallbackRequest;
 import dev.parallaxsports.notification.dto.AlertWorkerStatusCallbackRequest;
 import dev.parallaxsports.notification.model.AlertArtifact;

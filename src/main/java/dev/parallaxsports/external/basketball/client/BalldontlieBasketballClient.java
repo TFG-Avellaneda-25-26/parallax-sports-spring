@@ -2,7 +2,7 @@ package dev.parallaxsports.external.basketball.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.parallaxsports.basketball.BasketballLeague;
+import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.core.exception.SystemConfigurationException;
 import dev.parallaxsports.core.exception.UpstreamServiceException;

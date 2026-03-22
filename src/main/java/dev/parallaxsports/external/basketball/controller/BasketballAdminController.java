@@ -1,6 +1,6 @@
 package dev.parallaxsports.external.basketball.controller;
 
-import dev.parallaxsports.basketball.BasketballLeague;
+import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.external.basketball.dto.BasketballSyncResponse;
 import dev.parallaxsports.external.basketball.service.BasketballSyncService;
 import java.time.LocalDate;

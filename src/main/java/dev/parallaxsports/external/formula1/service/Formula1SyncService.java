@@ -1,10 +1,10 @@
 package dev.parallaxsports.external.formula1.service;
 
 import dev.parallaxsports.external.formula1.client.OpenF1Client;
-import dev.parallaxsports.formula1.dto.Formula1SessionResponse;
-import dev.parallaxsports.formula1.dto.Formula1SyncResponse;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.repository.EventRepository;
+import dev.parallaxsports.sport.formula1.dto.Formula1SessionResponse;
+import dev.parallaxsports.sport.formula1.dto.Formula1SyncResponse;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.external.formula1.dto.OpenF1MeetingDto;
 import dev.parallaxsports.external.formula1.dto.OpenF1SessionDto;
 import dev.parallaxsports.notification.service.UserEventAlertGenerationService;

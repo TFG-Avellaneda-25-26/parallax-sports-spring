@@ -1,6 +1,6 @@
 package dev.parallaxsports.notification.model;
 
-import dev.parallaxsports.formula1.model.Event;
+import dev.parallaxsports.sport.model.Event;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
