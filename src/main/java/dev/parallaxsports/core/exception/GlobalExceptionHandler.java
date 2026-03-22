@@ -27,24 +27,23 @@ import org.springframework.web.server.ResponseStatusException;
  *
  * This class is responsible for semantic mapping: choosing the most appropriate
  * HTTP status, title, detail, and specific problem type for known exception categories.
- * It is intentionally paired with {@link ProblemDetailResponseAdvice}, which performs
- * last-mile normalization for any ProblemDetail not fully shaped at this layer
- * (for example, framework-generated responses).
  */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
-    private static final String TYPE_NOT_FOUND = "http://localhost:4200/problems/not-found";
-    private static final String TYPE_BAD_REQUEST = "http://localhost:4200/problems/bad-request";
-    private static final String TYPE_UNAUTHORIZED = "http://localhost:4200/problems/unauthorized";
-    private static final String TYPE_FORBIDDEN = "http://localhost:4200/problems/forbidden";
-    private static final String TYPE_CONFLICT = "http://localhost:4200/problems/conflict";
-    private static final String TYPE_VALIDATION = "http://localhost:4200/problems/validation-error";
-    private static final String TYPE_MALFORMED_BODY = "http://localhost:4200/problems/malformed-body";
-    private static final String TYPE_BAD_GATEWAY = "http://localhost:4200/problems/bad-gateway";
-    private static final String TYPE_SERVICE_UNAVAILABLE = "http://localhost:4200/problems/service-unavailable";
-    private static final String TYPE_INTERNAL = "http://localhost:4200/problems/internal-error";
+    private static final String BASE = "/problems";
+    private static final String typeNotFound = BASE + "/not-found";
+    private static final String typeBadRequest = BASE + "/bad-request";
+    private static final String typeUnauthorized = BASE + "/unauthorized";
+    private static final String typeForbidden = BASE + "/forbidden";
+    private static final String typeConflict = BASE + "/conflict";
+    private static final String typeValidation = BASE + "/validation-error";
+    private static final String typeMalformedBody = BASE + "/malformed-body";
+    private static final String typeBadGateway = BASE + "/bad-gateway";
+    private static final String typeServiceUnavailable = BASE + "/service-unavailable";
+    private static final String typeConfigurationError = BASE + "/configuration-error";
+    private static final String typeInternal = BASE + "/internal-error";
 
     /*============================================================
       DOMAIN EXCEPTIONS
@@ -63,7 +62,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleNotFound(ResourceNotFoundException ex, WebRequest request) {
         logHandled(HttpStatus.NOT_FOUND, ex, request);
         return buildProblem(
-            TYPE_NOT_FOUND,
+            typeNotFound,
             HttpStatus.NOT_FOUND,
             "Resource Not Found",
             ex.getMessage(),
@@ -83,7 +82,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleBadRequest(BadRequestException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
         return buildProblem(
-            TYPE_BAD_REQUEST,
+            typeBadRequest,
             HttpStatus.BAD_REQUEST,
             "Bad Request",
             ex.getMessage(),
@@ -103,7 +102,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleUnauthorized(UnauthorizedException ex, WebRequest request) {
         logHandled(HttpStatus.UNAUTHORIZED, ex, request);
         return buildProblem(
-            TYPE_UNAUTHORIZED,
+            typeUnauthorized,
             HttpStatus.UNAUTHORIZED,
             "Unauthorized",
             ex.getMessage(),
@@ -123,7 +122,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleDuplicate(DuplicateResourceException ex, WebRequest request) {
         logHandled(HttpStatus.CONFLICT, ex, request);
         return buildProblem(
-            TYPE_CONFLICT,
+            typeConflict,
             HttpStatus.CONFLICT,
             "Conflict",
             ex.getMessage(),
@@ -143,7 +142,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleStateConflict(StateConflictException ex, WebRequest request) {
         logHandled(HttpStatus.CONFLICT, ex, request);
         return buildProblem(
-            TYPE_CONFLICT,
+            typeConflict,
             HttpStatus.CONFLICT,
             "Conflict",
             ex.getMessage(),
@@ -170,7 +169,7 @@ public class GlobalExceptionHandler {
         if (reason.contains("unique") || reason.contains("duplicate")) {
             logHandled(HttpStatus.CONFLICT, ex, request);
             return buildProblem(
-                TYPE_CONFLICT,
+                typeConflict,
                 HttpStatus.CONFLICT,
                 "Conflict",
                 "Resource conflicts with an existing record",
@@ -180,7 +179,7 @@ public class GlobalExceptionHandler {
         if (reason.contains("check constraint") || reason.contains("foreign key")) {
             logHandled(HttpStatus.BAD_REQUEST, ex, request);
             return buildProblem(
-                TYPE_BAD_REQUEST,
+                typeBadRequest,
                 HttpStatus.BAD_REQUEST,
                 "Bad Request",
                 "Request violates data constraints",
@@ -189,7 +188,7 @@ public class GlobalExceptionHandler {
         }
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
         return buildProblem(
-            TYPE_BAD_REQUEST,
+            typeBadRequest,
             HttpStatus.BAD_REQUEST,
             "Bad Request",
             "Invalid data",
@@ -214,7 +213,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
         logHandled(HttpStatus.FORBIDDEN, ex, request);
         return buildProblem(
-            TYPE_FORBIDDEN,
+            typeForbidden,
             HttpStatus.FORBIDDEN,
             "Forbidden",
             "Access denied",
@@ -234,7 +233,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleAuthenticationFailure(AuthenticationException ex, WebRequest request) {
         logHandled(HttpStatus.UNAUTHORIZED, ex, request);
         return buildProblem(
-            TYPE_UNAUTHORIZED,
+            typeUnauthorized,
             HttpStatus.UNAUTHORIZED,
             "Unauthorized",
             "Invalid credentials",
@@ -259,7 +258,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
         ProblemDetail problemDetail = buildProblem(
-            TYPE_VALIDATION,
+            typeValidation,
             HttpStatus.BAD_REQUEST,
             "Validation Error",
             "Your request parameters did not validate.",
@@ -292,7 +291,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleMethodArgumentNotValid(MethodArgumentNotValidException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
         ProblemDetail problemDetail = buildProblem(
-            TYPE_VALIDATION,
+            typeValidation,
             HttpStatus.BAD_REQUEST,
             "Validation Error",
             "Your request parameters did not validate.",
@@ -326,7 +325,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleHttpMessageNotReadable(HttpMessageNotReadableException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
         return buildProblem(
-            TYPE_MALFORMED_BODY,
+            typeMalformedBody,
             HttpStatus.BAD_REQUEST,
             "Malformed Request Body",
             "Malformed request body",
@@ -375,7 +374,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleUpstreamService(UpstreamServiceException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_GATEWAY, ex, request);
         return buildProblem(
-            TYPE_BAD_GATEWAY,
+            typeBadGateway,
             HttpStatus.BAD_GATEWAY,
             "Bad Gateway",
             ex.getMessage(),
@@ -399,7 +398,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleServiceUnavailable(RuntimeException ex, WebRequest request) {
         logHandled(HttpStatus.SERVICE_UNAVAILABLE, ex, request);
         return buildProblem(
-            TYPE_SERVICE_UNAVAILABLE,
+            typeServiceUnavailable,
             HttpStatus.SERVICE_UNAVAILABLE,
             "Service Unavailable",
             ex.getMessage() == null ? "Service temporarily unavailable" : ex.getMessage(),
@@ -419,7 +418,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleRestClientException(RestClientException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_GATEWAY, ex, request);
         return buildProblem(
-            TYPE_BAD_GATEWAY,
+            typeBadGateway,
             HttpStatus.BAD_GATEWAY,
             "Bad Gateway",
             "Upstream service request failed",
@@ -431,18 +430,38 @@ public class GlobalExceptionHandler {
     /**
      * Handles runtime system configuration failures that block normal operation.
      *
+    * Example: when the basketball API key is not configured
+    * (`app.external-api.balldontlie-api-key`),
+     * basketball sync endpoints cannot execute and should return an explicit
+     * service-unavailable/configuration problem shape instead of a generic 500.
+     *
      * @param ex configuration exception with operator-facing detail message
      * @param request current web request
-     * @return RFC ProblemDetail payload with status 500
+     * @return RFC ProblemDetail payload with status 503 for missing required runtime config,
+     *         otherwise status 500
      */
     @ExceptionHandler(SystemConfigurationException.class)
     public ProblemDetail handleSystemConfiguration(SystemConfigurationException ex, WebRequest request) {
+        String message = ex.getMessage() == null ? "System configuration error" : ex.getMessage();
+        boolean missingRequiredConfig = message.toLowerCase().contains("must be configured");
+
+        if (missingRequiredConfig) {
+            logHandled(HttpStatus.SERVICE_UNAVAILABLE, ex, request);
+            return buildProblem(
+                typeConfigurationError,
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Service Unavailable",
+                message,
+                request
+            );
+        }
+
         logHandled(HttpStatus.INTERNAL_SERVER_ERROR, ex, request);
         return buildProblem(
-            TYPE_INTERNAL,
+            typeInternal,
             HttpStatus.INTERNAL_SERVER_ERROR,
             "Internal Server Error",
-            ex.getMessage(),
+            message,
             request
         );
     }
@@ -464,7 +483,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleUnexpected(Exception ex, WebRequest request) {
         logHandled(HttpStatus.INTERNAL_SERVER_ERROR, ex, request);
         return buildProblem(
-            TYPE_INTERNAL,
+            typeInternal,
             HttpStatus.INTERNAL_SERVER_ERROR,
             "Internal Server Error",
             "An unexpected error occurred",
