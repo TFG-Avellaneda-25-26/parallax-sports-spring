@@ -6,6 +6,7 @@ import dev.parallaxsports.external.formula1.dto.OpenF1SessionDto;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -18,10 +19,19 @@ public class OpenF1Client {
     private final RestClient.Builder restClientBuilder;
     private final ExternalApiProperties externalApiProperties;
 
+    private RestClient restClient;
+
+    @PostConstruct
+    void init() {
+        String baseUrl = externalApiProperties.getOpenf1BaseUrl();
+        String resolved = (baseUrl == null || baseUrl.isBlank()) ? "https://api.openf1.org/v1" : baseUrl;
+        this.restClient = restClientBuilder.baseUrl(resolved).build();
+    }
+
     public List<OpenF1MeetingDto> fetchMeetings(int year) {
         OpenF1MeetingDto[] body;
         try {
-            body = restClient()
+            body = restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder.path("/meetings").queryParam("year", year).build())
                 .retrieve()
@@ -39,7 +49,7 @@ public class OpenF1Client {
     public List<OpenF1SessionDto> fetchSessions(int year) {
         OpenF1SessionDto[] body;
         try {
-            body = restClient()
+            body = restClient
                 .get()
                 .uri(uriBuilder -> uriBuilder.path("/sessions").queryParam("year", year).build())
                 .retrieve()
@@ -52,11 +62,5 @@ public class OpenF1Client {
             return Collections.emptyList();
         }
         return Arrays.asList(body);
-    }
-
-    private RestClient restClient() {
-        String baseUrl = externalApiProperties.getOpenf1BaseUrl();
-        String resolved = (baseUrl == null || baseUrl.isBlank()) ? "https://api.openf1.org/v1" : baseUrl;
-        return restClientBuilder.baseUrl(resolved).build();
     }
 }

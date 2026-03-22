@@ -210,12 +210,7 @@ public class UserEventAlertGenerationService {
             return false;
         }
 
-        for (String filter : filters) {
-            if (filter != null && filter.equalsIgnoreCase(eventType)) {
-                return true;
-            }
-        }
-        return false;
+        return filters.stream().anyMatch(f -> f != null && f.equalsIgnoreCase(eventType));
     }
 
     /**
