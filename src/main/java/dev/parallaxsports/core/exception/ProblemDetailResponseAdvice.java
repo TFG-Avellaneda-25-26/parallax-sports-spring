@@ -14,10 +14,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  *  Before serialization -> builds the Problem Details responses
  *
  * Spring framework and Spring Security can produce ProblemDetail responses
- * that never pass through {@link GlobalExceptionHandler} (e.g. framework-level
- * 400s, 403s from the security filter chain). This advice guarantees that
- * every ProblemDetail leaving the application carries a deterministic
- * {@code type} URI and an {@code instance} path per RFC 7807.
+ * that never pass through {@link GlobalExceptionHandler}
  */
 @RestControllerAdvice
     public class ProblemDetailResponseAdvice implements ResponseBodyAdvice<Object> {
