@@ -5,7 +5,7 @@ import static dev.parallaxsports.external.sync.SyncWriteHelper.sameEntityId;
 import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
 
 import dev.parallaxsports.sport.basketball.BasketballLeague;
-import dev.parallaxsports.sport.basketball.service.BasketballTeamLogoResolver;
+import dev.parallaxsports.sport.basketball.util.BasketballTeamLogoResolver;
 import dev.parallaxsports.external.basketball.dto.BalldontlieGameDto;
 import dev.parallaxsports.sport.model.Competition;
 import dev.parallaxsports.sport.model.Event;

@@ -1,4 +1,4 @@
-package dev.parallaxsports.sport.basketball.service;
+package dev.parallaxsports.sport.basketball.util;
 
 import dev.parallaxsports.sport.basketball.BasketballLeague;
 import java.util.Locale;

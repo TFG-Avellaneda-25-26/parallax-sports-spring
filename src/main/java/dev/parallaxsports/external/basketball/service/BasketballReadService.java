@@ -3,7 +3,7 @@ package dev.parallaxsports.external.basketball.service;
 import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.sport.basketball.dto.BasketballGameResponse;
 import dev.parallaxsports.sport.basketball.dto.BasketballTeamResponse;
-import dev.parallaxsports.sport.basketball.service.BasketballTeamLogoResolver;
+import dev.parallaxsports.sport.basketball.util.BasketballTeamLogoResolver;
 import dev.parallaxsports.external.basketball.client.BalldontlieBasketballClient;
 import dev.parallaxsports.external.basketball.dto.BalldontlieEnvelopeDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieMetaDto;
