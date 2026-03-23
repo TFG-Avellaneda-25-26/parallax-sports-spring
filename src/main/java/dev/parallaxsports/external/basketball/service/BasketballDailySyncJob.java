@@ -1,6 +1,6 @@
 package dev.parallaxsports.external.basketball.service;
 
-import dev.parallaxsports.basketball.BasketballLeague;
+import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
 import dev.parallaxsports.external.sync.ExternalApiDailySyncJob;
 import java.time.LocalDate;
@@ -36,3 +36,4 @@ public class BasketballDailySyncJob implements ExternalApiDailySyncJob {
         }
     }
 }
+    

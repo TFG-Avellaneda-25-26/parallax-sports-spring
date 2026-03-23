@@ -56,6 +56,13 @@ public class User {
     @Builder.Default
     private UserRole role = UserRole.USER;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    @Column(name = "verification_token_hash")
+    private String verificationTokenHash;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

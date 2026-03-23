@@ -4,11 +4,11 @@ import dev.parallaxsports.core.config.properties.AlertProperties;
 import dev.parallaxsports.follow.model.UserSportFollow;
 import dev.parallaxsports.follow.model.UserSportNotificationChannel;
 import dev.parallaxsports.follow.model.UserSportSettings;
-import dev.parallaxsports.formula1.repository.EventEntryRepository;
+import dev.parallaxsports.sport.repository.EventEntryRepository;
 import dev.parallaxsports.follow.repository.UserSportFollowRepository;
 import dev.parallaxsports.follow.repository.UserSportNotificationChannelRepository;
 import dev.parallaxsports.follow.repository.UserSportSettingsRepository;
-import dev.parallaxsports.formula1.model.Event;
+import dev.parallaxsports.sport.model.Event;
 import dev.parallaxsports.notification.model.UserEventAlert;
 import dev.parallaxsports.notification.repository.UserEventAlertRepository;
 import dev.parallaxsports.user.repository.UserRepository;
@@ -210,12 +210,7 @@ public class UserEventAlertGenerationService {
             return false;
         }
 
-        for (String filter : filters) {
-            if (filter != null && filter.equalsIgnoreCase(eventType)) {
-                return true;
-            }
-        }
-        return false;
+        return filters.stream().anyMatch(f -> f != null && f.equalsIgnoreCase(eventType));
     }
 
     /**

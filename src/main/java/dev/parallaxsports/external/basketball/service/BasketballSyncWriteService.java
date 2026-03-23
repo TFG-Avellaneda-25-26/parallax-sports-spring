@@ -1,23 +1,27 @@
 package dev.parallaxsports.external.basketball.service;
 
-import dev.parallaxsports.basketball.BasketballLeague;
-import dev.parallaxsports.basketball.service.BasketballTeamLogoResolver;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.nullSafe;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.sameEntityId;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
+
+import dev.parallaxsports.sport.basketball.BasketballLeague;
+import dev.parallaxsports.sport.basketball.util.BasketballTeamLogoResolver;
 import dev.parallaxsports.external.basketball.dto.BalldontlieGameDto;
-import dev.parallaxsports.formula1.model.Competition;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.model.EventEntry;
-import dev.parallaxsports.formula1.model.EventEntryId;
-import dev.parallaxsports.formula1.model.MediaAsset;
-import dev.parallaxsports.formula1.model.Participant;
-import dev.parallaxsports.formula1.model.Season;
-import dev.parallaxsports.formula1.model.Sport;
-import dev.parallaxsports.formula1.repository.CompetitionRepository;
-import dev.parallaxsports.formula1.repository.EventRepository;
-import dev.parallaxsports.formula1.repository.EventEntryRepository;
-import dev.parallaxsports.formula1.repository.MediaAssetRepository;
-import dev.parallaxsports.formula1.repository.ParticipantRepository;
-import dev.parallaxsports.formula1.repository.SeasonRepository;
-import dev.parallaxsports.formula1.repository.SportRepository;
+import dev.parallaxsports.sport.model.Competition;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.model.EventEntry;
+import dev.parallaxsports.sport.model.EventEntryId;
+import dev.parallaxsports.sport.model.MediaAsset;
+import dev.parallaxsports.sport.model.Participant;
+import dev.parallaxsports.sport.model.Season;
+import dev.parallaxsports.sport.model.Sport;
+import dev.parallaxsports.sport.repository.CompetitionRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
+import dev.parallaxsports.sport.repository.EventEntryRepository;
+import dev.parallaxsports.sport.repository.MediaAssetRepository;
+import dev.parallaxsports.sport.repository.ParticipantRepository;
+import dev.parallaxsports.sport.repository.SeasonRepository;
+import dev.parallaxsports.sport.repository.SportRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Objects;
@@ -295,31 +299,4 @@ class BasketballSyncWriteService {
         }
     }
 
-    private String nullSafe(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
-    }
-
-    private boolean sameEntityId(Object left, Object right) {
-        if (left == null && right == null) {
-            return true;
-        }
-        if (left == null || right == null) {
-            return false;
-        }
-        if (left instanceof Competition leftCompetition && right instanceof Competition rightCompetition) {
-            return Objects.equals(leftCompetition.getId(), rightCompetition.getId());
-        }
-        if (left instanceof Season leftSeason && right instanceof Season rightSeason) {
-            return Objects.equals(leftSeason.getId(), rightSeason.getId());
-        }
-        return false;
-    }
-
-    private <T> boolean setIfChanged(T current, T next, java.util.function.Consumer<T> setter) {
-        if (Objects.equals(current, next)) {
-            return false;
-        }
-        setter.accept(next);
-        return true;
-    }
 }

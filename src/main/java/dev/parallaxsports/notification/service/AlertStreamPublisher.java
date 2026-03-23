@@ -2,7 +2,7 @@ package dev.parallaxsports.notification.service;
 
 import dev.parallaxsports.core.config.properties.AlertProperties;
 import dev.parallaxsports.core.exception.ServiceUnavailableException;
-import dev.parallaxsports.formula1.model.Event;
+import dev.parallaxsports.sport.model.Event;
 import dev.parallaxsports.notification.integration.stream.AlertStreamPayloadBuilder;
 import dev.parallaxsports.notification.model.UserEventAlert;
 import lombok.RequiredArgsConstructor;

@@ -25,6 +25,7 @@ spring:
     open-in-view: false
 
 app:
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
   jwt:
     secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
     access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}

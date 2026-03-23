@@ -1,18 +1,19 @@
 package dev.parallaxsports.notification.service;
 
 import dev.parallaxsports.core.config.properties.AlertProperties;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.repository.EventRepository;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.notification.client.KtorAlertDispatchClient;
 import dev.parallaxsports.notification.model.UserEventAlert;
 import dev.parallaxsports.notification.repository.UserEventAlertRepository;
 import dev.parallaxsports.notification.service.policy.AlertRetryPolicy;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -153,18 +154,15 @@ public class UserEventAlertDispatchScheduler {
     private Map<Long, Event> loadEventsById(List<UserEventAlert> alerts) {
         Set<Long> eventIds = alerts.stream()
             .map(UserEventAlert::getEventId)
-            .filter(id -> id != null)
+            .filter(Objects::nonNull)
             .collect(Collectors.toSet());
 
         if (eventIds.isEmpty()) {
             return Map.of();
         }
 
-        Map<Long, Event> eventsById = new HashMap<>();
-        for (Event event : eventRepository.findAllById(eventIds)) {
-            eventsById.put(event.getId(), event);
-        }
-        return eventsById;
+        return eventRepository.findAllById(eventIds).stream()
+            .collect(Collectors.toMap(Event::getId, Function.identity()));
     }
 
 }

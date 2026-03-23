@@ -1,19 +1,23 @@
 package dev.parallaxsports.external.formula1.service;
 
+import static dev.parallaxsports.external.sync.SyncWriteHelper.nullSafe;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.sameEntityId;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
+
 import dev.parallaxsports.external.formula1.dto.OpenF1MeetingDto;
 import dev.parallaxsports.external.formula1.dto.OpenF1SessionDto;
-import dev.parallaxsports.formula1.model.Competition;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.model.MediaAsset;
-import dev.parallaxsports.formula1.model.Season;
-import dev.parallaxsports.formula1.model.Sport;
-import dev.parallaxsports.formula1.model.Venue;
-import dev.parallaxsports.formula1.repository.CompetitionRepository;
-import dev.parallaxsports.formula1.repository.EventRepository;
-import dev.parallaxsports.formula1.repository.MediaAssetRepository;
-import dev.parallaxsports.formula1.repository.SeasonRepository;
-import dev.parallaxsports.formula1.repository.SportRepository;
-import dev.parallaxsports.formula1.repository.VenueRepository;
+import dev.parallaxsports.sport.model.Competition;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.model.MediaAsset;
+import dev.parallaxsports.sport.model.Season;
+import dev.parallaxsports.sport.model.Sport;
+import dev.parallaxsports.sport.model.Venue;
+import dev.parallaxsports.sport.repository.CompetitionRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
+import dev.parallaxsports.sport.repository.MediaAssetRepository;
+import dev.parallaxsports.sport.repository.SeasonRepository;
+import dev.parallaxsports.sport.repository.SportRepository;
+import dev.parallaxsports.sport.repository.VenueRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -502,92 +506,6 @@ class Formula1SyncWriteService {
             return "live";
         }
         return "scheduled";
-    }
-
-    /*============================================================
-      GENERIC HELPERS
-      Null handling, change detection, and same-entity checks
-    ============================================================*/
-
-    /**
-     * Returns the fallback when value is null or blank.
-     *
-     * @param value source text
-     * @param fallback replacement text when source is empty
-     * @return non-blank value
-     */
-    private static String nullSafe(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
-    }
-
-    /**
-     * Returns the fallback when value is null.
-     *
-     * @param value source number
-     * @param fallback replacement number
-     * @return source or fallback
-     */
-    private static long nullSafe(Long value, long fallback) {
-        return value == null ? fallback : value;
-    }
-
-    /**
-     * Updates a field only when the value changed.
-     *
-     * @param current current value
-     * @param next candidate value
-     * @param setter mutator to call when changed
-     * @return true when an update was applied
-     * @param <T> compared value type
-     */
-    private static <T> boolean setIfChanged(T current, T next, java.util.function.Consumer<T> setter) {
-        if (Objects.equals(current, next)) {
-            return false;
-        }
-        setter.accept(next);
-        return true;
-    }
-
-    /**
-     * Compares supported entities by id to avoid false positives from detached object instances.
-     *
-     * @param left first entity candidate
-     * @param right second entity candidate
-     * @return true when both represent the same persisted entity or both are null
-     */
-    private static boolean sameEntityId(Object left, Object right) {
-        if (left == null && right == null) {
-            return true;
-        }
-        if (left == null || right == null) {
-            return false;
-        }
-        if (!left.getClass().equals(right.getClass())) {
-            return false;
-        }
-        if (!(left instanceof Event || left instanceof Venue || left instanceof Season)) {
-            return Objects.equals(left, right);
-        }
-        return Objects.equals(readEntityId(left), readEntityId(right));
-    }
-
-    /**
-     * Reads entity id for supported types used in sync association checks.
-     *
-     * @param entity supported entity instance
-     * @return entity id or null when unsupported
-     */
-    private static Long readEntityId(Object entity) {
-        if (entity instanceof Event event) {
-            return event.getId();
-        }
-        if (entity instanceof Venue venue) {
-            return venue.getId();
-        }
-        if (entity instanceof Season season) {
-            return season.getId();
-        }
-        return null;
     }
 
     record SyncCounters(int venuesUpserted, int meetingsUpserted, int sessionsUpserted, List<Long> processedSessionEventIds) {
