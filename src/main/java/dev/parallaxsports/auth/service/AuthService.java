@@ -32,9 +32,9 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final AuthenticationManager authenticationManager;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final EmailVerificationService emailVerificationService;
 
 	public AuthResponse register(RegisterRequest request) {
-		// Email is unique in DB; we fail fast with a domain-specific 409 exception.
 		if (userRepository.existsByEmail(request.email())) {
 			throw new DuplicateResourceException("User already exists with email: " + request.email());
 		}
@@ -43,16 +43,20 @@ public class AuthService {
 			.email(request.email())
 			.passwordHash(passwordEncoder.encode(request.password()))
 			.displayName(request.displayName())
-			// New accounts are always USER. Admin is expected to be provisioned explicitly in DB.
+			// want admin? edit it in the DB
 			.role(UserRole.USER)
 			.build();
 
 		User saved = userRepository.save(user);
 		log.info("Registered new user '{}' with role {}", saved.getEmail(), saved.getRole());
+
+		emailVerificationService.createAndSendVerification(saved);
+
 		return new AuthResponse(
 			saved.getId(),
 			jwtTokenProvider.issueAccessToken(saved),
-			jwtTokenProvider.issueRefreshToken(saved)
+			jwtTokenProvider.issueRefreshToken(saved),
+			saved.isEmailVerified()
 		);
 	}
 
@@ -76,7 +80,8 @@ public class AuthService {
 		return new AuthResponse(
 			saved.getId(),
 			jwtTokenProvider.issueAccessToken(saved),
-			jwtTokenProvider.issueRefreshToken(saved)
+			jwtTokenProvider.issueRefreshToken(saved),
+			saved.isEmailVerified()
 		);
 	}
 
@@ -121,7 +126,8 @@ public class AuthService {
 		return new AuthResponse(
 			user.getId(),
 			jwtTokenProvider.issueAccessToken(user),
-			jwtTokenProvider.issueRefreshToken(user)
+			jwtTokenProvider.issueRefreshToken(user),
+			user.isEmailVerified()
 		);
 	}
 

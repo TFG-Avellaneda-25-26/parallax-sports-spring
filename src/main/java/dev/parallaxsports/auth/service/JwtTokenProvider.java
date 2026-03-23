@@ -27,6 +27,7 @@ public class JwtTokenProvider {
     private static final String TOKEN_TYPE_CLAIM = "token_type";
     // role claim is included for downstream debugging/inspection; DB remains source of truth.
     private static final String ROLE_CLAIM = "role";
+    private static final String EMAIL_VERIFIED_CLAIM = "email_verified";
     private SecretKey signingKey;
 
     @PostConstruct
@@ -104,6 +105,7 @@ public class JwtTokenProvider {
             .subject(user.getEmail())
             .claim(TOKEN_TYPE_CLAIM, tokenType)
             .claim(ROLE_CLAIM, user.getRole().name())
+            .claim(EMAIL_VERIFIED_CLAIM, user.isEmailVerified())
             .issuedAt(issuedAt)
             .expiration(expiresAt)
             .signWith(signingKey, Jwts.SIG.HS256)
