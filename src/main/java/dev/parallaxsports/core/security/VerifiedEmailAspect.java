@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 // https://www.baeldung.com/spring-aop-annotation
+// mentioned in class but never touched on it, so we weanted to experiment and find a good use
 @Aspect
 @Component
 @RequiredArgsConstructor
