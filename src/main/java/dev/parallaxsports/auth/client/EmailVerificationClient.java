@@ -11,7 +11,7 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 public class EmailVerificationClient {
 
-	private static final String VERIFICATION_PATH = "/api/email/verification";
+	private static final String VERIFICATION_PATH = "/internal/email/verify";
 
 	private final RestClient restClient;
 

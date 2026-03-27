@@ -60,9 +60,6 @@ public class User {
     @Builder.Default
     private boolean emailVerified = false;
 
-    @Column(name = "verification_token_hash")
-    private String verificationTokenHash;
-
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
