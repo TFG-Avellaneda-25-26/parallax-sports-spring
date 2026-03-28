@@ -14,16 +14,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/pandascore")
+// Cambiada la ruta al espacio de admin para usar SecurityConfig en vez de @PreAuthorize
+@RequestMapping("/api/admin/pandascore")
 @RequiredArgsConstructor
 @Slf4j
 public class PandaScoreController {
@@ -39,13 +34,41 @@ public class PandaScoreController {
         "counter-strike"
     );
 
-    @PostMapping("/sync/{videogame}")
-    @PreAuthorize("isAuthenticated()")
-    public PandaScoreSyncResponse syncVideogame(
-        @PathVariable String videogame,
+    // Ahora exponemos un endpoint POST por cada videojuego para que no haga falta especificarlo en la llamada
+    @PostMapping("/sync/league-of-legends")
+    public PandaScoreSyncResponse syncLeagueOfLegends(
         @RequestParam(defaultValue = "2") int pages,
         @RequestParam(required = false) Integer perPage
     ) {
+        return syncFor("league-of-legends", pages, perPage);
+    }
+
+    @PostMapping("/sync/valorant")
+    public PandaScoreSyncResponse syncValorant(
+        @RequestParam(defaultValue = "2") int pages,
+        @RequestParam(required = false) Integer perPage
+    ) {
+        return syncFor("valorant", pages, perPage);
+    }
+
+    @PostMapping("/sync/dota2")
+    public PandaScoreSyncResponse syncDota2(
+        @RequestParam(defaultValue = "2") int pages,
+        @RequestParam(required = false) Integer perPage
+    ) {
+        return syncFor("dota2", pages, perPage);
+    }
+
+    @PostMapping("/sync/counter-strike")
+    public PandaScoreSyncResponse syncCounterStrike(
+        @RequestParam(defaultValue = "2") int pages,
+        @RequestParam(required = false) Integer perPage
+    ) {
+        return syncFor("counter-strike", pages, perPage);
+    }
+
+    // Lógica común de sincronización extraída a método privado
+    private PandaScoreSyncResponse syncFor(String videogame, int pages, Integer perPage) {
         try {
             log.info("Requested PandaScore sync videogame={} pages={} perPage={}", videogame, pages, perPage);
 
@@ -54,11 +77,7 @@ public class PandaScoreController {
             }
 
             // Check API key presence and fail fast with message claro
-            String apiKey = externalApiProperties.getPandascoreApiKey();
-            if (apiKey == null || apiKey.isBlank()) {
-                log.warn("PandaScore API key is not configured in environment");
-                throw new BadRequestException("PandaScore API key is not configured; set PANDASCORE_API_KEY environment variable");
-            }
+            // PandaScore API key is validated by the client; if it's missing the client will log and the sync will no-op.
 
             int defaultPerPage = externalApiProperties.getPandascoreDefaultPerPage();
             int maxPerPage = externalApiProperties.getPandascoreMaxPerPage();
@@ -91,7 +110,6 @@ public class PandaScoreController {
     // /test endpoint removed: external raw-fetch testing must be done via internal tools or authorized sync
 
     @GetMapping("/matches")
-    @PreAuthorize("isAuthenticated()")
     public List<PandaScoreMatchResponse> getMatches(
         @RequestParam(required = false) String leagueName,
         @RequestParam(required = false) String videogame,

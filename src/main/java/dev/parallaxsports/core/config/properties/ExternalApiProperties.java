@@ -21,6 +21,9 @@ public class ExternalApiProperties {
     private int pandascoreMaxPerPage = 50;
     private int pandascoreMaxRetries = 3;
     private long pandascoreBaseBackoffMillis = 500L;
+    // Base URL y API key para PandaScore (opcional en configuración; hay fallback en cliente)
+    private String pandascoreBaseUrl;
+    private String pandascoreApiKey;
 
     public String getOpenf1BaseUrl() {
         return openf1BaseUrl;
@@ -93,5 +96,21 @@ public class ExternalApiProperties {
 
     public void setPandascoreBaseBackoffMillis(long pandascoreBaseBackoffMillis) {
         this.pandascoreBaseBackoffMillis = pandascoreBaseBackoffMillis;
+    }
+
+    public String getPandascoreBaseUrl() {
+        return pandascoreBaseUrl;
+    }
+
+    public void setPandascoreBaseUrl(String pandascoreBaseUrl) {
+        this.pandascoreBaseUrl = pandascoreBaseUrl;
+    }
+
+    public String getPandascoreApiKey() {
+        return pandascoreApiKey;
+    }
+
+    public void setPandascoreApiKey(String pandascoreApiKey) {
+        this.pandascoreApiKey = pandascoreApiKey;
     }
 }
