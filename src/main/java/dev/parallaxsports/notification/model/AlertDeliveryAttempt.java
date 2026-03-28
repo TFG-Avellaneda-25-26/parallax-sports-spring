@@ -17,6 +17,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Audit row for one delivery attempt of a user alert.
+ *
+ * Attempt rows capture transport diagnostics and notification microservice
+ * metadata (worker_id = microservice instance id) plus provider metadata used
+ * by retries, observability, and post-mortem analysis.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -73,6 +80,9 @@ public class AlertDeliveryAttempt {
     @Column(name = "latency_ms")
     private Integer latencyMs;
 
+    /**
+     * Initializes attempt start timestamp on insert.
+     */
     @PrePersist
     void onCreate() {
         if (startedAt == null) {

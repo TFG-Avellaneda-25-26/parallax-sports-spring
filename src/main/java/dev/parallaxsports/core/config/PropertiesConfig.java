@@ -1,6 +1,6 @@
 package dev.parallaxsports.core.config;
 
-import dev.parallaxsports.core.config.properties.DiscordProperties;
+import dev.parallaxsports.core.config.properties.AppProperties;
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
 import dev.parallaxsports.core.config.properties.AlertProperties;
@@ -11,9 +11,9 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties({
+    AppProperties.class,
     JwtProperties.class,
     AlertProperties.class,
-    DiscordProperties.class,
     ExternalApiProperties.class,
     ExternalSyncProperties.class,
     RedisProperties.class

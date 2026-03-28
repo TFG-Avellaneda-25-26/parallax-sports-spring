@@ -7,6 +7,13 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Native SQL implementation of lock-safe due-alert claiming.
+ *
+ * Uses FOR UPDATE SKIP LOCKED to support concurrent notification microservice
+ * instances without
+ * double-claiming the same alert rows.
+ */
 @Repository
 @Slf4j
 public class UserEventAlertClaimRepositoryImpl implements UserEventAlertClaimRepository {
@@ -16,6 +23,15 @@ public class UserEventAlertClaimRepositoryImpl implements UserEventAlertClaimRep
 
     @Override
     @SuppressWarnings("unchecked")
+    /**
+     * Claims due alerts for a channel and marks them queued in one SQL statement.
+     *
+     * @param channel delivery channel to claim
+     * @param streamName stream name recorded for downstream correlation
+     * @param now due boundary and queue timestamp
+     * @param batchSize maximum rows claimed in this call
+     * @return claimed alert ids
+     */
     public List<Long> claimDueAlertIdsForChannel(String channel, String streamName, OffsetDateTime now, int batchSize) {
         String sql = """
             with due as (

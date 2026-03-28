@@ -1,11 +1,16 @@
 package dev.parallaxsports.core.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.parallaxsports.auth.security.JwtAuthenticationFilter;
 import dev.parallaxsports.auth.security.UserDetailsServiceImpl;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -24,26 +29,53 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                        HttpStatus.UNAUTHORIZED, "Authentication required"
+                    );
+                    problem.setType(URI.create("/problems/unauthorized"));
+                    problem.setTitle("Unauthorized");
+                    problem.setInstance(URI.create(request.getRequestURI()));
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+                    objectMapper.writeValue(response.getOutputStream(), problem);
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                        HttpStatus.FORBIDDEN, "Access denied"
+                    );
+                    problem.setType(URI.create("/problems/forbidden"));
+                    problem.setTitle("Forbidden");
+                    problem.setInstance(URI.create(request.getRequestURI()));
+                    response.setStatus(HttpStatus.FORBIDDEN.value());
+                    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+                    objectMapper.writeValue(response.getOutputStream(), problem);
+                })
+            )
+            //! SAVE ALL ENDPOINTS HERE,ORGANIZED. NO @Preauthorize's IN CONTROLLERS!!!
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/error", "/actuator/health/**", "/actuator/info", "/actuator/prometheus", "/v3/api-docs/**", "/swagger-ui/**", "/api/auth/**", "/api/formula1/**").permitAll()
+                .requestMatchers("/error").permitAll()
+                .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers("/v3/ap i-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh").permitAll()
+                .requestMatchers("/api/auth/**").authenticated()
+                .requestMatchers("/api/formula1/**", "/api/basketball/**").permitAll()
                 .requestMatchers("/api/internal/alerts/**").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
-            // Replaces default/basic auth with our DB-backed user lookup + password encoder.
             .authenticationProvider(authenticationProvider())
-            // Runs before username/password filter to build SecurityContext from Bearer JWT.
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Note: httpBasic was intentionally removed. With JWT, sending username/password
-        // every request is unnecessary and less secure than short-lived signed access tokens.
         log.info("Security filter chain initialized: stateless JWT with ADMIN route protection");
 
         return http.build();
@@ -51,7 +83,6 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        // DAO provider delegates credential checks to UserDetailsService + PasswordEncoder.
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
@@ -64,7 +95,6 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-        // Exposed for login flow where we authenticate email/password once and then issue JWT.
         return configuration.getAuthenticationManager();
     }
 }

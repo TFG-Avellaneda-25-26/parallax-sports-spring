@@ -25,15 +25,15 @@ spring:
     open-in-view: false
 
 app:
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
   jwt:
     secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
-    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:120}
-    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:600}
-  discord:
-    bot-token: ${DISCORD_BOT_TOKEN:dev-discord-token}
+    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
+    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:86400}
   external-api:
     openf1-base-url: ${OPENF1_BASE_URL:https://api.openf1.org/v1}
-    apifootball-api-key: ${APIFOOTBALL_API_KEY}
+    balldontlie-base-url: ${BALLDONTLIE_BASE_URL:https://api.balldontlie.io}
+    balldontlie-api-key: ${BALLDONTLIE_API_KEY:}
     pandascore-api-key: ${PANDASCORE_API_KEY}
     # PandaScore specific configuration
     pandascore-base-url: ${PANDASCORE_BASE_URL:https://api.pandascore.co}
@@ -49,26 +49,31 @@ app:
     daily-cron: ${EXTERNAL_SYNC_DAILY_CRON:0 30 0 * * *}
     years-back: ${EXTERNAL_SYNC_YEARS_BACK:0}
     years-forward: ${EXTERNAL_SYNC_YEARS_FORWARD:1}
+    nba-enabled: ${EXTERNAL_SYNC_NBA_ENABLED:true}
+    wnba-enabled: ${EXTERNAL_SYNC_WNBA_ENABLED:true}
   alerts:
     generation-enabled: ${ALERTS_GENERATION_ENABLED:true}
-    default-channel: ${ALERTS_DEFAULT_CHANNEL:telegram}
-    default-lead-time-minutes: ${ALERTS_DEFAULT_LEAD_MINUTES:30}
     dispatch-enabled: ${ALERTS_DISPATCH_ENABLED:false}
     dispatch-cron: ${ALERTS_DISPATCH_CRON:0 * * * * *}
-    dispatch-batch-size: ${ALERTS_DISPATCH_BATCH_SIZE:100}
-    telegram-stream: ${ALERTS_TELEGRAM_STREAM:alerts.telegram.v1}
-    discord-stream: ${ALERTS_DISCORD_STREAM:alerts.discord.v1}
-    email-stream: ${ALERTS_EMAIL_STREAM:alerts.email.v1}
+    stream-trim-enabled: ${ALERTS_STREAM_TRIM_ENABLED:true}
+    stream-max-len: ${ALERTS_STREAM_MAX_LEN:200000}
+    http-fallback-enabled: ${ALERTS_HTTP_FALLBACK_ENABLED:false}
     ktor-base-url: ${KTOR_ALERTS_BASE_URL:}
-    ktor-dispatch-path: ${KTOR_ALERTS_DISPATCH_PATH:/internal/alerts/dispatch}
-    ktor-api-key: ${KTOR_ALERTS_API_KEY}
+    ktor-api-key: ${KTOR_ALERTS_API_KEY:}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
 
 observability:
   loki-url: ${LOKI_URL:http://localhost:3100}
-  prometheus-url: ${PROMETHEUS_URL:http://localhost:9090}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,mappings,conditions,env,beans
+        include: health,info,prometheus,mappings,conditions

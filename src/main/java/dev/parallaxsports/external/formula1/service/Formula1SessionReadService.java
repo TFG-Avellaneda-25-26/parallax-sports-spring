@@ -1,18 +1,18 @@
 package dev.parallaxsports.external.formula1.service;
 
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
-import dev.parallaxsports.formula1.dto.Formula1SessionResponse;
-import dev.parallaxsports.formula1.model.Competition;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.model.MediaAsset;
-import dev.parallaxsports.formula1.model.Season;
-import dev.parallaxsports.formula1.model.Sport;
-import dev.parallaxsports.formula1.model.Venue;
-import dev.parallaxsports.formula1.repository.CompetitionRepository;
-import dev.parallaxsports.formula1.repository.EventRepository;
-import dev.parallaxsports.formula1.repository.MediaAssetRepository;
-import dev.parallaxsports.formula1.repository.SeasonRepository;
-import dev.parallaxsports.formula1.repository.SportRepository;
+import dev.parallaxsports.sport.formula1.dto.Formula1SessionResponse;
+import dev.parallaxsports.sport.model.Competition;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.model.MediaAsset;
+import dev.parallaxsports.sport.model.Season;
+import dev.parallaxsports.sport.model.Sport;
+import dev.parallaxsports.sport.model.Venue;
+import dev.parallaxsports.sport.repository.CompetitionRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
+import dev.parallaxsports.sport.repository.MediaAssetRepository;
+import dev.parallaxsports.sport.repository.SeasonRepository;
+import dev.parallaxsports.sport.repository.SportRepository;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,8 +124,7 @@ class Formula1SessionReadService {
             event.getStartTimeUtc(),
             event.getEndTimeUtc(),
             event.getEventType(),
-            event.getName(),
-            event.getStage()
+            event.getName()
         );
     }
 }

@@ -1,6 +1,5 @@
 package dev.parallaxsports.user.model;
 
-import dev.parallaxsports.audit.model.AuditLog;
 import dev.parallaxsports.follow.model.UserSportFollow;
 import dev.parallaxsports.follow.model.UserSportSettings;
 import jakarta.persistence.Column;
@@ -35,7 +34,7 @@ import dev.parallaxsports.notification.model.UserEventAlert;
 @Entity
 @Table(name = "users")
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@ToString(exclude = {"identities", "settings", "sportSettings", "sportFollows", "eventAlerts", "auditLogs"})
+@ToString(exclude = {"identities", "settings", "sportSettings", "sportFollows", "eventAlerts"})
 public class User {
 
     @Id
@@ -56,6 +55,10 @@ public class User {
     @Column(nullable = false)
     @Builder.Default
     private UserRole role = UserRole.USER;
+
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -81,10 +84,6 @@ public class User {
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     @Builder.Default
     private Set<UserEventAlert> eventAlerts = new LinkedHashSet<>();
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<AuditLog> auditLogs = new LinkedHashSet<>();
 
     @PrePersist
     void onCreate() {

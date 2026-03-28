@@ -1,140 +1,107 @@
-# AI Code Documentation Guidelines
+# Code Documentation Guidelines
 
-This note is a project-specific guide for AI-assisted code documentation.
-Use it to produce consistent, useful, low-noise comments.
+## Goal
 
-## 1. Goal
+Write comments for a developer who has never seen this code before.
+Every comment should answer at least one of:
 
-Documentation must answer, quickly:
+- **What** does this do? (not how — that's already in the code)
+- **Why** does it work this way?
+- **What comes out of it?** (what it returns, what changes, what fails)
 
-1. What this code does.
-1. When it triggers.
-1. What contract it returns or enforces.
-1. Why this behavior exists (only when not obvious).
+If a comment only restates what the code literally says, delete it.
 
-Write for maintainers who did not author the code.
+---
 
-## 2. Non-Negotiable Principles
+## Comment structure
 
-1. Clarity over cleverness.
-1. Intent over implementation narration.
-1. Contract over internal trivia.
-1. Stable wording over noisy, changing details.
-1. Keep comments synchronized with behavior changes.
+Use three levels of comments in medium or large classes.
 
-## 3. Preferred Comment Architecture
+### Section banners
 
-Use all three layers in medium/large classes.
-
-### 3.1 Section banners (grouping)
-
-Use multiline decorated banners to partition related logic.
+Group related methods under a banner so the file is scannable.
 
 ```java
 /*============================================================
-  VALIDATION EXCEPTIONS
-  Bean validation and request parsing failures
+  SYNC PIPELINE
+  Fetches pages from the external API and upserts into the DB
 ============================================================*/
 ```
 
-### 3.2 Scanner line before handlers
+### Exception handler annotation
 
-Required for exception handlers.
-
-Format:
-
-```java
-// -> Triggers: <concise trigger> || Returns: <Status Name> (<code>)
-```
-
-Example:
+Every `@ExceptionHandler` method gets a one-liner above it in this exact format:
 
 ```java
 // -> Triggers: malformed JSON / unreadable body || Returns: Bad Request (400)
 ```
 
-### 3.3 Javadoc for methods
+This lets anyone scanning the file instantly see what breaks what.
 
-Use Javadoc for public methods and non-trivial private helpers.
-
-Minimum shape:
+### Javadoc for public and non-obvious methods
 
 ```java
 /**
- * One-line purpose with domain meaning.
+ * Fetches games for the given league from the external API and saves them to the database.
+ * Stops early if the page budget is exhausted or the API rate-limits the request.
  *
- * @param x what matters about this input
- * @param y what matters about this input
- * @return contract-level output
+ * @param league      the league to sync (NBA or WNBA)
+ * @param fromDate    start of the date window to request
+ * @param maxPages    maximum number of API pages to consume in one call
+ * @return summary of what was fetched and saved, including whether the sync finished or was cut short
  */
 ```
 
-## 4. Style Rules (strict)
+Only document params that actually change behavior. Skip params that are self-explanatory.
 
-Direct, explicit, concise. Active voice. Domain vocabulary only. No vague terms ("stuff", "things", "some logic"). No jokes in permanent docs. Avoid repeating the method name in sentence form.
+---
 
-## 5. AI Workflow: How to Document a File
+## Writing style
 
-When an AI updates documentation, follow this sequence:
+- Write in plain sentences. "Resolves the start date for the sync window" not "Performs resolution of the start date artifact".
+- Say what the method does to the world, not how its internals work.
+- Include a `@return` line whenever the return value isn't obvious from the method name — describe what the value means, not just its type.
+- Include a `@throws` only when callers need to handle or expect a specific failure.
+- Document `null` if passing `null` meaningfully changes behavior (e.g. `null` league means all leagues).
 
-1. Detect responsibilities in the class.
-1. Group methods into meaningful sections.
-1. Add/normalize section banners.
-1. For each handler, add scanner trigger/status line.
-1. Add or tighten Javadoc with purpose, params that affect behavior, return contract, and throws only when part of the contract.
-1. Remove filler comments that restate obvious syntax.
-1. Validate that comments still match behavior.
+---
 
-## 6. What to Document
+## What to document
 
-1. Business intent of methods.
-1. Input conditions that change behavior.
-1. Output contract (status, payload shape, side effects).
-1. Security-sensitive constraints.
-1. Observability behavior (structured logs, metrics tags).
+- Why a method exists if its name alone doesn't make it clear.
+- Inputs that change the output or behavior in non-obvious ways.
+- Side effects (sends an event, writes to a table, evicts a cache).
+- Security-relevant constraints ("only accessible to admins", "sanitized before use").
+- Anything that surprised you when you first read it — it will surprise the next person too.
 
-## 7. What Not to Document
+## What not to document
 
-1. Obvious control flow.
-1. Java syntax semantics.
-1. Temporary implementation detail likely to churn.
-1. Comments with no actionable meaning.
+- What the code already says literally (`// loops over events` above a for loop).
+- Java language mechanics.
+- Implementation details that change often (specific field names, magic numbers already named by constants).
 
-## 8. Exception Handler Documentation Standard
+---
+
+## Javadoc quality check
+
+Before committing Javadoc, ask:
+
+1. Does this tell someone new what the method is *for*?
+2. Does the `@return` line say what the value *means*, not just what type it is?
+3. Is it still true? If the method changed, update the comment.
+
+Bad examples:
+
+- `"Handles the exception"` — says nothing
+- `"Returns the result"` — useless
+- `"Sets the value"` — obvious from the setter name
+
+---
+
+## Exception handlers (full standard)
 
 For each `@ExceptionHandler`:
 
-1. Add scanner line in this exact format: `// -> Triggers: ... || Returns: Name (code)`.
-1. Add Javadoc that states failure category, key params (`ex`, `request`), and response contract (`ProblemDetail`, status).
-1. Keep user-facing messages safe (no secrets/internal traces).
-1. Ensure status mapping is explicit and stable.
-
-## 9. Javadoc Quality Bar
-
-Good Javadoc is:
-
-1. Specific to domain behavior.
-1. Short (usually 1-3 lines of description).
-1. Focused on contract, not line-by-line mechanics.
-1. Updated when method behavior changes.
-
-Bad Javadoc examples:
-
-1. "This method handles exceptions".
-1. "Sets variable value".
-1. Copy-paste text that does not match current logic.
-
-## 10. Presentation Improvements AI Should Apply
-
-When possible, AI should improve readability by:
-
-1. Ordering sections from external contract to internal helpers.
-1. Keeping consistent wording across similar handlers.
-1. Using one terminology set (`request body`, `validation`, `conflict`, etc.).
-1. Keeping scanner comments parallel in shape for quick visual parsing.
-
-## 11. Maintenance Rule
-
-If behavior changes, update related comments in the same commit.
-If code and comment diverge, fix the comment immediately.
-
+1. Add the trigger/status line: `// -> Triggers: ... || Returns: Name (code)`
+2. Javadoc should name the failure category, describe what the response looks like, and note any caller-visible behavior.
+3. Never include internal stack traces or secret values in user-facing messages.

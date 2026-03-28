@@ -1,9 +1,0 @@
-$kind: http-request
-name: Sync Year
-method: POST
-url: '{{baseUrl}}/api/admin/formula1/sync/:year'
-order: 1000
-pathVariables:
-  - key: year
-    value: '2024'
-    description: Year to sync F1 data for

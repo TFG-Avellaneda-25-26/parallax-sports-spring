@@ -1,22 +1,23 @@
 package dev.parallaxsports.external.formula1.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.nullSafe;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.sameEntityId;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
+
 import dev.parallaxsports.external.formula1.dto.OpenF1MeetingDto;
 import dev.parallaxsports.external.formula1.dto.OpenF1SessionDto;
-import dev.parallaxsports.formula1.model.Competition;
-import dev.parallaxsports.formula1.model.Event;
-import dev.parallaxsports.formula1.model.MediaAsset;
-import dev.parallaxsports.formula1.model.Season;
-import dev.parallaxsports.formula1.model.Sport;
-import dev.parallaxsports.formula1.model.Venue;
-import dev.parallaxsports.formula1.repository.CompetitionRepository;
-import dev.parallaxsports.formula1.repository.EventRepository;
-import dev.parallaxsports.formula1.repository.MediaAssetRepository;
-import dev.parallaxsports.formula1.repository.SeasonRepository;
-import dev.parallaxsports.formula1.repository.SportRepository;
-import dev.parallaxsports.formula1.repository.VenueRepository;
+import dev.parallaxsports.sport.model.Competition;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.model.MediaAsset;
+import dev.parallaxsports.sport.model.Season;
+import dev.parallaxsports.sport.model.Sport;
+import dev.parallaxsports.sport.model.Venue;
+import dev.parallaxsports.sport.repository.CompetitionRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
+import dev.parallaxsports.sport.repository.MediaAssetRepository;
+import dev.parallaxsports.sport.repository.SeasonRepository;
+import dev.parallaxsports.sport.repository.SportRepository;
+import dev.parallaxsports.sport.repository.VenueRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -25,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +37,6 @@ class Formula1SyncWriteService {
     private static final String FORMULA1_KEY = "formula1";
     private static final String FORMULA1_NAME = "Formula 1";
     private static final String F1_COMPETITION_NAME = "Formula 1 World Championship";
-    private static final Pattern QUALIFYING_STAGE_PATTERN = Pattern.compile("\\b(Q[1-3])\\b", Pattern.CASE_INSENSITIVE);
 
     private final SportRepository sportRepository;
     private final CompetitionRepository competitionRepository;
@@ -46,7 +44,6 @@ class Formula1SyncWriteService {
     private final VenueRepository venueRepository;
     private final EventRepository eventRepository;
     private final MediaAssetRepository mediaAssetRepository;
-    private final ObjectMapper objectMapper;
 
 
     /**
@@ -149,7 +146,6 @@ class Formula1SyncWriteService {
                     .kind("series")
                     .region("global")
                     .country(null)
-                    .metadata(objectMapper.createObjectNode())
                     .build()
             )
         );
@@ -229,13 +225,10 @@ class Formula1SyncWriteService {
             created = true;
         }
 
-        JsonNode metadata = buildVenueMetadata(meeting);
-
         boolean changed = false;
         changed |= setIfChanged(venue.getCity(), city, venue::setCity);
         changed |= setIfChanged(venue.getCountry(), meeting.countryName(), venue::setCountry);
         changed |= setIfChanged(venue.getTimezone(), meeting.gmtOffset(), venue::setTimezone);
-        changed |= setIfChanged(venue.getMetadata(), metadata, venue::setMetadata);
 
         if (!created && !changed) {
             return new UpsertVenueResult(venue, false);
@@ -278,16 +271,12 @@ class Formula1SyncWriteService {
             created = true;
         }
 
-        JsonNode metadata = buildMeetingMetadata(meeting);
-
         boolean changed = false;
         changed |= setIfChanged(event.getEventType(), "meeting", event::setEventType);
         changed |= setIfChanged(event.getName(), nullSafe(meeting.meetingName(), "Formula 1 Meeting"), event::setName);
-        changed |= setIfChanged(event.getStage(), null, event::setStage);
         changed |= setIfChanged(event.getStatus(), statusFor(meeting.dateStart(), meeting.dateEnd()), event::setStatus);
         changed |= setIfChanged(event.getStartTimeUtc(), meeting.dateStart(), event::setStartTimeUtc);
         changed |= setIfChanged(event.getEndTimeUtc(), meeting.dateEnd(), event::setEndTimeUtc);
-        changed |= setIfChanged(event.getMetadata(), metadata, event::setMetadata);
 
         if (!sameEntityId(event.getVenue(), venue)) {
             event.setVenue(venue);
@@ -352,7 +341,6 @@ class Formula1SyncWriteService {
             .startTimeUtc(session.dateStart())
             .endTimeUtc(session.dateEnd())
             .participantsMode("none")
-            .metadata(objectMapper.createObjectNode())
             .externalProvider(OPENF1_PROVIDER)
             .externalId("meeting:" + nullSafe(session.meetingKey(), 0L))
             .build();
@@ -402,16 +390,12 @@ class Formula1SyncWriteService {
             created = true;
         }
 
-        JsonNode metadata = buildSessionMetadata(session);
-
         boolean changed = false;
         changed |= setIfChanged(event.getName(), nullSafe(session.sessionName(), "Session " + session.sessionKey()), event::setName);
         changed |= setIfChanged(event.getEventType(), mapEventType(session.sessionType(), session.sessionName()), event::setEventType);
-        changed |= setIfChanged(event.getStage(), extractQualifyingStage(session.sessionType(), session.sessionName()), event::setStage);
         changed |= setIfChanged(event.getStatus(), statusFor(session.dateStart(), session.dateEnd()), event::setStatus);
         changed |= setIfChanged(event.getStartTimeUtc(), session.dateStart(), event::setStartTimeUtc);
         changed |= setIfChanged(event.getEndTimeUtc(), session.dateEnd(), event::setEndTimeUtc);
-        changed |= setIfChanged(event.getMetadata(), metadata, event::setMetadata);
 
         if (!sameEntityId(event.getParentEvent(), parentMeeting)) {
             event.setParentEvent(parentMeeting);
@@ -504,22 +488,6 @@ class Formula1SyncWriteService {
     }
 
     /**
-     * Extracts qualifying stage markers (Q1/Q2/Q3) from session labels when present.
-     *
-     * @param sessionType provider session type text
-     * @param sessionName provider session display name
-     * @return qualifying stage code or null when not a staged qualifying session
-     */
-    private String extractQualifyingStage(String sessionType, String sessionName) {
-        String merged = ((sessionType == null ? "" : sessionType) + " " + (sessionName == null ? "" : sessionName)).toUpperCase();
-        Matcher matcher = QUALIFYING_STAGE_PATTERN.matcher(merged);
-        if (matcher.find()) {
-            return matcher.group(1).toUpperCase();
-        }
-        return null;
-    }
-
-    /**
      * Derives lifecycle status from event date bounds relative to current time.
      *
      * @param start event start timestamp
@@ -538,184 +506,6 @@ class Formula1SyncWriteService {
             return "live";
         }
         return "scheduled";
-    }
-
-        /*============================================================
-            PROVIDER METADATA BUILDERS
-            Capture provider-specific values in jsonb metadata fields
-        ============================================================*/
-
-        /**
-         * Builds venue metadata payload from meeting provider attributes.
-         *
-         * @param meeting source meeting payload
-         * @return json object with optional provider venue fields
-         */
-    private JsonNode buildVenueMetadata(OpenF1MeetingDto meeting) {
-        ObjectNode node = objectMapper.createObjectNode();
-        if (meeting.circuitKey() != null) {
-            node.put("circuit_key", meeting.circuitKey());
-        }
-        if (meeting.circuitType() != null) {
-            node.put("circuit_type", meeting.circuitType());
-        }
-        if (meeting.countryCode() != null) {
-            node.put("country_code", meeting.countryCode());
-        }
-        if (meeting.countryKey() != null) {
-            node.put("country_key", meeting.countryKey());
-        }
-        if (meeting.gmtOffset() != null) {
-            node.put("gmt_offset", meeting.gmtOffset());
-        }
-        if (meeting.circuitInfoUrl() != null) {
-            node.put("circuit_info_url", meeting.circuitInfoUrl());
-        }
-        return node;
-    }
-
-    /**
-     * Builds meeting metadata payload from provider attributes.
-     *
-     * @param meeting source meeting payload
-     * @return json object with optional provider meeting fields
-     */
-    private JsonNode buildMeetingMetadata(OpenF1MeetingDto meeting) {
-        ObjectNode node = objectMapper.createObjectNode();
-        if (meeting.meetingKey() != null) {
-            node.put("meeting_key", meeting.meetingKey());
-        }
-        if (meeting.meetingOfficialName() != null) {
-            node.put("meeting_official_name", meeting.meetingOfficialName());
-        }
-        if (meeting.countryCode() != null) {
-            node.put("country_code", meeting.countryCode());
-        }
-        if (meeting.countryName() != null) {
-            node.put("country_name", meeting.countryName());
-        }
-        if (meeting.year() != null) {
-            node.put("year", meeting.year());
-        }
-        return node;
-    }
-
-    /**
-     * Builds session metadata payload from provider attributes.
-     *
-     * @param session source session payload
-     * @return json object with optional provider session fields
-     */
-    private JsonNode buildSessionMetadata(OpenF1SessionDto session) {
-        ObjectNode node = objectMapper.createObjectNode();
-        if (session.sessionKey() != null) {
-            node.put("session_key", session.sessionKey());
-        }
-        if (session.meetingKey() != null) {
-            node.put("meeting_key", session.meetingKey());
-        }
-        if (session.sessionType() != null) {
-            node.put("session_type", session.sessionType());
-        }
-        if (session.countryCode() != null) {
-            node.put("country_code", session.countryCode());
-        }
-        if (session.countryName() != null) {
-            node.put("country_name", session.countryName());
-        }
-        if (session.gmtOffset() != null) {
-            node.put("gmt_offset", session.gmtOffset());
-        }
-        if (session.year() != null) {
-            node.put("year", session.year());
-        }
-        return node;
-    }
-
-    /*============================================================
-      GENERIC HELPERS
-      Null handling, change detection, and same-entity checks
-    ============================================================*/
-
-    /**
-     * Returns the fallback when value is null or blank.
-     *
-     * @param value source text
-     * @param fallback replacement text when source is empty
-     * @return non-blank value
-     */
-    private static String nullSafe(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
-    }
-
-    /**
-     * Returns the fallback when value is null.
-     *
-     * @param value source number
-     * @param fallback replacement number
-     * @return source or fallback
-     */
-    private static long nullSafe(Long value, long fallback) {
-        return value == null ? fallback : value;
-    }
-
-    /**
-     * Updates a field only when the value changed.
-     *
-     * @param current current value
-     * @param next candidate value
-     * @param setter mutator to call when changed
-     * @return true when an update was applied
-     * @param <T> compared value type
-     */
-    private static <T> boolean setIfChanged(T current, T next, java.util.function.Consumer<T> setter) {
-        if (Objects.equals(current, next)) {
-            return false;
-        }
-        setter.accept(next);
-        return true;
-    }
-
-    /**
-     * Compares supported entities by id to avoid false positives from detached object instances.
-     *
-     * @param left first entity candidate
-     * @param right second entity candidate
-     * @return true when both represent the same persisted entity or both are null
-     */
-    private static boolean sameEntityId(Object left, Object right) {
-        if (left == null && right == null) {
-            return true;
-        }
-        if (left == null || right == null) {
-            return false;
-        }
-        if (!left.getClass().equals(right.getClass())) {
-            return false;
-        }
-        if (!(left instanceof Event || left instanceof Venue || left instanceof Season)) {
-            return Objects.equals(left, right);
-        }
-        return Objects.equals(readEntityId(left), readEntityId(right));
-    }
-
-    /**
-     * Reads entity id for supported types used in sync association checks.
-     *
-     * @param entity supported entity instance
-     * @return entity id or null when unsupported
-     */
-    private static Long readEntityId(Object entity) {
-        if (entity instanceof Event event) {
-            return event.getId();
-        }
-        if (entity instanceof Venue venue) {
-            return venue.getId();
-        }
-        if (entity instanceof Season season) {
-            return season.getId();
-        }
-        return null;
     }
 
     record SyncCounters(int venuesUpserted, int meetingsUpserted, int sessionsUpserted, List<Long> processedSessionEventIds) {

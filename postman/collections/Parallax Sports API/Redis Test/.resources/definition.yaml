@@ -1,4 +1,0 @@
-$kind: collection
-name: Redis Test
-description: Test endpoints for Redis connectivity verification.
-order: 7000

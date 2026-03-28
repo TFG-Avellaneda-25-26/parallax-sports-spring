@@ -1,6 +1,6 @@
 package dev.parallaxsports.notification.model;
 
-import dev.parallaxsports.formula1.model.Event;
+import dev.parallaxsports.sport.model.Event;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -19,6 +19,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Stores generated media asset metadata associated with an event.
+ *
+ * Artifact means the metadata needed to reuse generated media during delivery
+ * (for example media type, storage key/provider, and public URL).
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -65,6 +71,9 @@ public class AlertArtifact {
     @Column(name = "expires_at")
     private OffsetDateTime expiresAt;
 
+    /**
+     * Initializes creation timestamp on insert.
+     */
     @PrePersist
     void onCreate() {
         if (createdAt == null) {

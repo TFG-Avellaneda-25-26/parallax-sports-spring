@@ -1,6 +1,6 @@
 package dev.parallaxsports.external.formula1.controller;
 
-import dev.parallaxsports.formula1.dto.Formula1SyncResponse;
+import dev.parallaxsports.sport.formula1.dto.Formula1SyncResponse;
 import dev.parallaxsports.external.formula1.service.Formula1SyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

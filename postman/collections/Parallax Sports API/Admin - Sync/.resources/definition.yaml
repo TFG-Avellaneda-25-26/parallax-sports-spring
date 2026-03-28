@@ -1,4 +1,0 @@
-$kind: collection
-name: Admin - Sync
-description: Admin endpoints for triggering external data synchronization jobs.
-order: 6000
