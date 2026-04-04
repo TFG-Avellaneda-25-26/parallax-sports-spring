@@ -1,5 +1,6 @@
 package dev.parallaxsports.sport.basketball.controller;
 
+import dev.parallaxsports.core.exception.BadRequestException;
 import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.sport.basketball.dto.BasketballGameResponse;
 import dev.parallaxsports.sport.basketball.dto.BasketballTeamResponse;
@@ -26,6 +27,9 @@ public class BasketballController {
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
         @RequestParam(required = false) BasketballLeague league
     ) {
+        if (toDate.isBefore(fromDate)) {
+            throw new BadRequestException("toDate must not be before fromDate");
+        }
         return basketballSyncService.getGames(league, fromDate, toDate);
     }
 

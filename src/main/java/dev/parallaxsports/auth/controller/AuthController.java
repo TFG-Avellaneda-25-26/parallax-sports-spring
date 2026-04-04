@@ -9,8 +9,6 @@ import dev.parallaxsports.auth.dto.VerifyEmailRequest;
 import dev.parallaxsports.auth.service.AuthService;
 import dev.parallaxsports.auth.service.EmailVerificationService;
 import dev.parallaxsports.user.model.User;
-import dev.parallaxsports.user.repository.UserRepository;
-import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +26,6 @@ public class AuthController {
 
 	private final AuthService authService;
 	private final EmailVerificationService emailVerificationService;
-	private final UserRepository userRepository;
 
 	@PostMapping("/register")
 	public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -50,8 +47,7 @@ public class AuthController {
 		@Valid @RequestBody VerifyEmailRequest request,
 		@AuthenticationPrincipal UserDetails userDetails
 	) {
-		User user = userRepository.findByEmail(userDetails.getUsername())
-			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		User user = authService.resolveUserByEmail(userDetails.getUsername());
 		emailVerificationService.verify(user, request.code());
 		return ResponseEntity.ok(new EmailVerificationResponse("Email verified successfully"));
 	}
@@ -60,8 +56,7 @@ public class AuthController {
 	public ResponseEntity<EmailVerificationResponse> resendVerification(
 		@AuthenticationPrincipal UserDetails userDetails
 	) {
-		User user = userRepository.findByEmail(userDetails.getUsername())
-			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		User user = authService.resolveUserByEmail(userDetails.getUsername());
 		emailVerificationService.resendVerification(user);
 		return ResponseEntity.ok(new EmailVerificationResponse("Verification email sent"));
 	}

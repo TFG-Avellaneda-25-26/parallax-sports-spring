@@ -53,9 +53,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			UserDetails userDetails = userDetailsService.loadUserByUsername(subject);
 			if (jwtTokenProvider.isTokenValid(claims, userDetails, "access")) {
 				// Build Spring Security principal with authorities extracted from DB-backed UserDetails.
+				// Store claims as credentials so downstream components (e.g. VerifiedEmailAspect)
+				// can read JWT claims without an extra DB query.
 				UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
 					userDetails,
-					null,
+					claims,
 					userDetails.getAuthorities()
 				);
 				authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

@@ -5,6 +5,7 @@ import dev.parallaxsports.auth.dto.LoginRequest;
 import dev.parallaxsports.auth.dto.RefreshTokenRequest;
 import dev.parallaxsports.auth.dto.RegisterRequest;
 import dev.parallaxsports.core.exception.DuplicateResourceException;
+import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.core.exception.UnauthorizedException;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.model.UserRole;
@@ -50,7 +51,11 @@ public class AuthService {
 		User saved = userRepository.save(user);
 		log.info("Registered new user '{}' with role {}", saved.getEmail(), saved.getRole());
 
-		emailVerificationService.createAndSendVerification(saved);
+		try {
+			emailVerificationService.createAndSendVerification(saved);
+		} catch (Exception ex) {
+			log.warn("Verification email could not be sent for user '{}': {}", saved.getEmail(), ex.getMessage());
+		}
 
 		return new AuthResponse(
 			saved.getId(),
@@ -129,6 +134,11 @@ public class AuthService {
 			jwtTokenProvider.issueRefreshToken(user),
 			user.isEmailVerified()
 		);
+	}
+
+	public User resolveUserByEmail(String email) {
+		return userRepository.findByEmail(email)
+			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 	}
 
 	private String currentRequestContext() {

@@ -4,8 +4,9 @@ import dev.parallaxsports.user.dto.UpdateUserRequest;
 import dev.parallaxsports.user.dto.UserResponse;
 import dev.parallaxsports.user.service.UserService;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,8 +23,8 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public List<UserResponse> findAll() {
-        return userService.findAll();
+    public Page<UserResponse> findAll(Pageable pageable) {
+        return userService.findAll(pageable);
     }
 
     @GetMapping("/{id}")
