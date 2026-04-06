@@ -2,7 +2,6 @@ package dev.parallaxsports.auth.service;
 
 import dev.parallaxsports.auth.dto.AuthResponse;
 import dev.parallaxsports.auth.dto.LoginRequest;
-import dev.parallaxsports.auth.dto.RefreshTokenRequest;
 import dev.parallaxsports.auth.dto.RegisterRequest;
 import dev.parallaxsports.core.exception.DuplicateResourceException;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
@@ -12,17 +11,16 @@ import dev.parallaxsports.user.model.UserRole;
 import dev.parallaxsports.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.HttpServletResponse;
 import java.time.OffsetDateTime;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +32,9 @@ public class AuthService {
 	private final AuthenticationManager authenticationManager;
 	private final JwtTokenProvider jwtTokenProvider;
 	private final EmailVerificationService emailVerificationService;
+	private final RefreshTokenService refreshTokenService;
 
-	public AuthResponse register(RegisterRequest request) {
+	public AuthResponse register(RegisterRequest request, String clientIp, HttpServletResponse response) {
 		if (userRepository.existsByEmail(request.email())) {
 			throw new DuplicateResourceException("User already exists with email: " + request.email());
 		}
@@ -57,15 +56,17 @@ public class AuthService {
 			log.warn("Verification email could not be sent for user '{}': {}", saved.getEmail(), ex.getMessage());
 		}
 
-		return new AuthResponse(
-			saved.getId(),
-			jwtTokenProvider.issueAccessToken(saved),
-			jwtTokenProvider.issueRefreshToken(saved),
-			saved.isEmailVerified()
-		);
+		String accessToken = jwtTokenProvider.issueAccessToken(saved);
+		String refreshToken = jwtTokenProvider.issueRefreshToken(saved);
+		Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
+
+		refreshTokenService.store(saved, refreshToken, refreshClaims, clientIp);
+		refreshTokenService.addRefreshTokenCookie(response, refreshToken);
+
+		return new AuthResponse(saved.getId(), accessToken, null, saved.isEmailVerified());
 	}
 
-	public AuthResponse login(LoginRequest request) {
+	public AuthResponse login(LoginRequest request, String clientIp, HttpServletResponse response) {
 		try {
 			// Delegate password verification to Spring Security AuthenticationManager.
 			authenticationManager.authenticate(
@@ -82,74 +83,81 @@ public class AuthService {
 		User saved = userRepository.save(user);
 		log.info("User '{}' logged in", saved.getEmail());
 
-		return new AuthResponse(
-			saved.getId(),
-			jwtTokenProvider.issueAccessToken(saved),
-			jwtTokenProvider.issueRefreshToken(saved),
-			saved.isEmailVerified()
-		);
+		String accessToken = jwtTokenProvider.issueAccessToken(saved);
+		String refreshToken = jwtTokenProvider.issueRefreshToken(saved);
+		Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
+
+		refreshTokenService.store(saved, refreshToken, refreshClaims, clientIp);
+		refreshTokenService.addRefreshTokenCookie(response, refreshToken);
+
+		return new AuthResponse(saved.getId(), accessToken, null, saved.isEmailVerified());
 	}
 
-	public AuthResponse refresh(RefreshTokenRequest request) {
-		// TODO: persist/rotate refresh token identifiers (e.g., jti hash) for revocation support.
-		String refreshToken = request.refreshToken();
-		String requestContext = currentRequestContext();
-		String subject;
+	public AuthResponse refresh(String refreshToken, String clientIp, HttpServletResponse response) {
 		Claims claims;
 		try {
-			// Parse token first; invalid/expired/forged tokens map to 401.
 			claims = jwtTokenProvider.parseClaims(refreshToken);
-			subject = claims.getSubject();
-			log.info(
-				"Refresh attempt accepted for parsing subject='{}' expiresAt='{}' {}",
-				subject,
-				claims.getExpiration(),
-				requestContext
-			);
 		} catch (JwtException | IllegalArgumentException ex) {
-			log.warn("Refresh token parse failed: {} {}", ex.getMessage(), requestContext);
+			log.warn("Refresh token parse failed: {}", ex.getMessage());
 			throw new UnauthorizedException("Invalid refresh token");
 		}
+
+		String jti = claims.getId();
+		String subject = claims.getSubject();
 
 		User user = userRepository.findByEmail(subject)
 			.orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
-		org.springframework.security.core.userdetails.UserDetails userDetails =
-			org.springframework.security.core.userdetails.User
-				.withUsername(user.getEmail())
-				.password(user.getPasswordHash() == null ? "" : user.getPasswordHash())
-				.authorities("ROLE_" + user.getRole().name())
-				.build();
+		UserDetails userDetails = org.springframework.security.core.userdetails.User
+			.withUsername(user.getEmail())
+			.password(user.getPasswordHash() == null ? "" : user.getPasswordHash())
+			.authorities("ROLE_" + user.getRole().name())
+			.build();
 
 		if (!jwtTokenProvider.isTokenValid(claims, userDetails, "refresh")) {
-			log.warn("Refresh token rejected by validation subject='{}' {}", subject, requestContext);
+			log.warn("Refresh token rejected by validation subject='{}'", subject);
 			throw new UnauthorizedException("Invalid refresh token");
 		}
 
-		// Rotate by issuing a new access token and a new refresh token.
-		log.info("Refresh token accepted and rotating tokens for subject='{}' {}", user.getEmail(), requestContext);
-		return new AuthResponse(
-			user.getId(),
-			jwtTokenProvider.issueAccessToken(user),
-			jwtTokenProvider.issueRefreshToken(user),
-			user.isEmailVerified()
-		);
+		// Validate against DB: check not revoked, not expired, hash matches.
+		var stored = refreshTokenService.validate(jti, refreshToken);
+		if (stored.isEmpty()) {
+			// Valid JWT but not in DB — possible refresh token reuse attack.
+			log.warn("Refresh token not found in DB for subject='{}', possible reuse attack — revoking all tokens", subject);
+			refreshTokenService.revokeAllByUser(user.getId());
+			throw new UnauthorizedException("Invalid refresh token");
+		}
+
+		// Rotate: revoke old token + store new one in one transaction.
+		String newAccessToken = jwtTokenProvider.issueAccessToken(user);
+		String newRefreshToken = jwtTokenProvider.issueRefreshToken(user);
+		Claims newRefreshClaims = jwtTokenProvider.parseClaims(newRefreshToken);
+
+		refreshTokenService.rotateToken(jti, user, newRefreshToken, newRefreshClaims, clientIp);
+		refreshTokenService.addRefreshTokenCookie(response, newRefreshToken);
+
+		log.info("Tokens rotated for subject='{}'", user.getEmail());
+		return new AuthResponse(user.getId(), newAccessToken, null, user.isEmailVerified());
+	}
+
+	public void logout(String refreshToken, HttpServletResponse response) {
+		if (refreshToken != null && !refreshToken.isBlank()) {
+			try {
+				Claims claims = jwtTokenProvider.parseClaims(refreshToken);
+				String jti = claims.getId();
+				if (jti != null) {
+					refreshTokenService.revokeByJti(jti);
+				}
+			} catch (JwtException | IllegalArgumentException ex) {
+				// Ignore invalid/expired tokens on logout — clear cookie regardless.
+				log.debug("Logout with invalid token (ignored): {}", ex.getMessage());
+			}
+		}
+		refreshTokenService.clearRefreshTokenCookie(response);
 	}
 
 	public User resolveUserByEmail(String email) {
 		return userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 	}
-
-	private String currentRequestContext() {
-		ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-		if (attrs == null) {
-			return "uri=unknown ip=unknown";
-		}
-		HttpServletRequest req = attrs.getRequest();
-		String uri = req == null ? "unknown" : req.getRequestURI();
-		String ip = req == null ? "unknown" : req.getRemoteAddr();
-		return "uri='" + uri + "' ip='" + ip + "'";
-	}
-
 }

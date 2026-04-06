@@ -1,9 +1,10 @@
 package dev.parallaxsports.auth.security;
 
 import dev.parallaxsports.auth.service.JwtTokenProvider;
+import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.repository.UserRepository;
-import jakarta.servlet.http.Cookie;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
@@ -21,6 +22,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final RefreshTokenService refreshTokenService;
 
     @Override
     public void onAuthenticationSuccess(@NonNull HttpServletRequest request,
@@ -35,18 +37,14 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found after Oauth2 login: " + email));
+                .orElseThrow(() -> new RuntimeException("User not found after OAuth2 login: " + email));
 
         String accessToken = jwtTokenProvider.issueAccessToken(user);
         String refreshToken = jwtTokenProvider.issueRefreshToken(user);
+        Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
 
-        Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(false);
-        refreshCookie.setPath("/");
-        refreshCookie.setMaxAge(7 * 24 * 60 * 60); // 7 Days
-
-        response.addCookie(refreshCookie);
+        refreshTokenService.store(user, refreshToken, refreshClaims, request.getRemoteAddr());
+        refreshTokenService.addRefreshTokenCookie(response, refreshToken);
 
         String targetUrl = "http://localhost:4200/auth/callback?token=" + accessToken;
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

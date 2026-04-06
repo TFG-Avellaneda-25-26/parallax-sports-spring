@@ -8,12 +8,17 @@ import dev.parallaxsports.auth.dto.RegisterRequest;
 import dev.parallaxsports.auth.dto.VerifyEmailRequest;
 import dev.parallaxsports.auth.service.AuthService;
 import dev.parallaxsports.auth.service.EmailVerificationService;
+import dev.parallaxsports.auth.service.RefreshTokenService;
+import dev.parallaxsports.core.exception.UnauthorizedException;
 import dev.parallaxsports.user.model.User;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,18 +33,48 @@ public class AuthController {
 	private final EmailVerificationService emailVerificationService;
 
 	@PostMapping("/register")
-	public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-		return ResponseEntity.ok(authService.register(request));
+	public ResponseEntity<AuthResponse> register(
+		@Valid @RequestBody RegisterRequest request,
+		HttpServletRequest servletRequest,
+		HttpServletResponse servletResponse
+	) {
+		return ResponseEntity.ok(authService.register(request, servletRequest.getRemoteAddr(), servletResponse));
 	}
 
 	@PostMapping("/login")
-	public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-		return ResponseEntity.ok(authService.login(request));
+	public ResponseEntity<AuthResponse> login(
+		@Valid @RequestBody LoginRequest request,
+		HttpServletRequest servletRequest,
+		HttpServletResponse servletResponse
+	) {
+		return ResponseEntity.ok(authService.login(request, servletRequest.getRemoteAddr(), servletResponse));
 	}
 
 	@PostMapping("/refresh")
-	public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-		return ResponseEntity.ok(authService.refresh(request));
+	public ResponseEntity<AuthResponse> refresh(
+		@CookieValue(name = RefreshTokenService.COOKIE_NAME, required = false) String cookieToken,
+		@RequestBody(required = false) RefreshTokenRequest body,
+		HttpServletRequest servletRequest,
+		HttpServletResponse servletResponse
+	) {
+		String token = cookieToken != null ? cookieToken
+			: (body != null ? body.refreshToken() : null);
+		if (token == null || token.isBlank()) {
+			throw new UnauthorizedException("Refresh token required");
+		}
+		return ResponseEntity.ok(authService.refresh(token, servletRequest.getRemoteAddr(), servletResponse));
+	}
+
+	@PostMapping("/logout")
+	public ResponseEntity<Void> logout(
+		@CookieValue(name = RefreshTokenService.COOKIE_NAME, required = false) String cookieToken,
+		@RequestBody(required = false) RefreshTokenRequest body,
+		HttpServletResponse servletResponse
+	) {
+		String token = cookieToken != null ? cookieToken
+			: (body != null ? body.refreshToken() : null);
+		authService.logout(token, servletResponse);
+		return ResponseEntity.noContent().build();
 	}
 
 	@PostMapping("/verify-email")
