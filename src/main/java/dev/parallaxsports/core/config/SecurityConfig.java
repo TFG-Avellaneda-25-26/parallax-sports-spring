@@ -2,8 +2,11 @@ package dev.parallaxsports.core.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.parallaxsports.auth.security.JwtAuthenticationFilter;
+import dev.parallaxsports.auth.security.OAuth2SuccessHandler;
 import dev.parallaxsports.auth.security.UserDetailsServiceImpl;
 import java.net.URI;
+
+import dev.parallaxsports.auth.service.OAuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +19,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,11 +34,13 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
     private final ObjectMapper objectMapper;
+    private final OAuthService oAuthService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
@@ -72,6 +78,10 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
+            )
+            .oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo.userService(oAuthService))
+                .successHandler(oAuth2SuccessHandler)
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
