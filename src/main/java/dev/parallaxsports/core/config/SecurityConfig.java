@@ -1,19 +1,15 @@
 package dev.parallaxsports.core.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.parallaxsports.auth.security.JwtAuthenticationFilter;
 import dev.parallaxsports.auth.security.OAuth2SuccessHandler;
 import dev.parallaxsports.auth.security.UserDetailsServiceImpl;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import dev.parallaxsports.auth.service.OAuthService;
+import dev.parallaxsports.core.exception.RestAccessDeniedHandler;
+import dev.parallaxsports.core.exception.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -33,9 +29,10 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
-    private final ObjectMapper objectMapper;
     private final OAuthService oAuthService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -43,28 +40,8 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((request, response, authException) -> {
-                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-                    Map<String, Object> problem = new LinkedHashMap<>();
-                    problem.put("type", "/problems/unauthorized");
-                    problem.put("title", "Unauthorized");
-                    problem.put("status", HttpStatus.UNAUTHORIZED.value());
-                    problem.put("detail", "Authentication required");
-                    problem.put("instance", request.getRequestURI());
-                    objectMapper.writeValue(response.getOutputStream(), problem);
-                })
-                .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    response.setStatus(HttpStatus.FORBIDDEN.value());
-                    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-                    Map<String, Object> problem = new LinkedHashMap<>();
-                    problem.put("type", "/problems/forbidden");
-                    problem.put("title", "Forbidden");
-                    problem.put("status", HttpStatus.FORBIDDEN.value());
-                    problem.put("detail", "Access denied");
-                    problem.put("instance", request.getRequestURI());
-                    objectMapper.writeValue(response.getOutputStream(), problem);
-                })
+                .authenticationEntryPoint(restAuthenticationEntryPoint)
+                .accessDeniedHandler(restAccessDeniedHandler)
             )
             //! SAVE ALL ENDPOINTS HERE,ORGANIZED. NO @Preauthorize's IN CONTROLLERS!!!
             .authorizeHttpRequests(auth -> auth
