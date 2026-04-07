@@ -15,6 +15,8 @@ public class UnverifiedUserCleanupScheduler {
 
 	private static final int EXPIRY_DAYS = 14;
 
+	private final UserRepository userRepository;
+
 	@Scheduled(cron = "0 0 3 * * *")
 	@Transactional
 	public void cleanupUnverifiedUsers() {
@@ -24,6 +26,4 @@ public class UnverifiedUserCleanupScheduler {
 			log.info("Deleted {} unverified users registered before {}", deleted, cutoff);
 		}
 	}
-
-	private final UserRepository userRepository;
 }

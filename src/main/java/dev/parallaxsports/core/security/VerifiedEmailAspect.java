@@ -1,36 +1,30 @@
 package dev.parallaxsports.core.security;
 
-import dev.parallaxsports.user.model.User;
-import dev.parallaxsports.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import io.jsonwebtoken.Claims;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 // https://www.baeldung.com/spring-aop-annotation
-// mentioned in class but never touched on it, so we weanted to experiment and find a good use
+// mentioned in class but never touched on it, so we wanted to experiment and find a good use
 @Aspect
 @Component
-@RequiredArgsConstructor
 public class VerifiedEmailAspect {
-
-	private final UserRepository userRepository;
 
 	@Before("@annotation(RequiresVerifiedEmail) || @within(RequiresVerifiedEmail)")
 	public void checkEmailVerified() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		if (auth == null || !(auth.getPrincipal() instanceof UserDetails userDetails)) {
+		if (!(auth instanceof UsernamePasswordAuthenticationToken token)
+			|| !(token.getCredentials() instanceof Claims claims)) {
 			throw new AccessDeniedException("Authentication required");
 		}
 
-		User user = userRepository.findByEmail(userDetails.getUsername())
-			.orElseThrow(() -> new AccessDeniedException("User not found"));
-
-		if (!user.isEmailVerified()) {
+		Boolean emailVerified = claims.get("email_verified", Boolean.class);
+		if (!Boolean.TRUE.equals(emailVerified)) {
 			throw new AccessDeniedException("Email verification required");
 		}
 	}

@@ -10,6 +10,7 @@ import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -96,12 +97,18 @@ public class JwtTokenProvider {
             .getPayload();
     }
 
+    public String extractJti(String token) {
+        return parseClaims(token).getId();
+    }
+
     private String issueToken(User user, String tokenType, long ttlSeconds) {
         Date issuedAt = new Date();
         Date expiresAt = new Date(issuedAt.getTime() + ttlSeconds * 1000);
 
         // Subject=email aligns with login identifier and UserDetailsService lookup.
+        // jti (JWT ID) is a unique identifier per token, used for revocation tracking.
         String token = Jwts.builder()
+            .id(UUID.randomUUID().toString())
             .subject(user.getEmail())
             .claim(TOKEN_TYPE_CLAIM, tokenType)
             .claim(ROLE_CLAIM, user.getRole().name())

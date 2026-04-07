@@ -8,12 +8,14 @@ import java.util.Collections;
 import java.util.List;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class OpenF1Client {
 
     private final RestClient.Builder restClientBuilder;
@@ -37,10 +39,12 @@ public class OpenF1Client {
                 .retrieve()
                 .body(OpenF1MeetingDto[].class);
         } catch (HttpClientErrorException.NotFound ex) {
+            log.warn("OpenF1 meetings endpoint returned 404 for year={}", year);
             return Collections.emptyList();
         }
 
         if (body == null) {
+            log.warn("OpenF1 meetings endpoint returned null body for year={}", year);
             return Collections.emptyList();
         }
         return Arrays.asList(body);
@@ -55,10 +59,12 @@ public class OpenF1Client {
                 .retrieve()
                 .body(OpenF1SessionDto[].class);
         } catch (HttpClientErrorException.NotFound ex) {
+            log.warn("OpenF1 sessions endpoint returned 404 for year={}", year);
             return Collections.emptyList();
         }
 
         if (body == null) {
+            log.warn("OpenF1 sessions endpoint returned null body for year={}", year);
             return Collections.emptyList();
         }
         return Arrays.asList(body);

@@ -1,6 +1,7 @@
 package dev.parallaxsports.auth.security;
 
 import dev.parallaxsports.auth.service.JwtTokenProvider;
+import dev.parallaxsports.auth.service.RefreshTokenService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -24,6 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtTokenProvider jwtTokenProvider;
 	private final UserDetailsServiceImpl userDetailsService;
+	private final RefreshTokenService refreshTokenService;
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -52,10 +54,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 			UserDetails userDetails = userDetailsService.loadUserByUsername(subject);
 			if (jwtTokenProvider.isTokenValid(claims, userDetails, "access")) {
+				// Check Redis blacklist for emergency-revoked access tokens (fail-open if Redis is down).
+				String jti = claims.getId();
+				if (jti != null) {
+					try {
+						if (refreshTokenService.isAccessTokenBlacklisted(jti)) {
+							log.warn("Access token is blacklisted jti='{}' {}", jti, requestContext);
+							filterChain.doFilter(request, response);
+							return;
+						}
+					} catch (Exception ex) {
+						log.warn("Blacklist check failed (Redis unavailable?), failing open: {} {}", ex.getMessage(), requestContext);
+					}
+				}
+
 				// Build Spring Security principal with authorities extracted from DB-backed UserDetails.
+				// Store claims as credentials so downstream components (e.g. VerifiedEmailAspect)
+				// can read JWT claims without an extra DB query.
 				UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
 					userDetails,
-					null,
+					claims,
 					userDetails.getAuthorities()
 				);
 				authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

@@ -23,13 +23,38 @@ spring:
     password: ${DB_PASSWORD:12345}
   jpa:
     open-in-view: false
+  security:
+    oauth2:
+      client:
+        registration:
+          discord:
+            client-id: ${OAUTH_DISCORD_ID:dev-change-me-oauth-discord-id}
+            client-secret: ${OAUTH_DISCORD_SECRET:dev-change-me-oauth-discord-secret}
+            scope:
+              - identify
+              - email
+            authorization-grant-type: authorization_code
+            redirect-uri: "http://localhost:8080/login/oauth2/code/discord"
+            client-name: Discord
+          google:
+            client-id: ${OAUTH_GOOGLE_ID:dev-change-me-oauth-google-id}
+            client-secret: ${OAUTH_GOOGLE_SECRET:dev-change-me-oauth-google-secret}
+            scope:
+              - email
+              - profile
+        provider:
+          discord:
+            authorization-uri: https://discord.com/api/oauth2/authorize
+            token-uri: https://discord.com/api/oauth2/token
+            user-info-uri: https://discord.com/api/users/@me
+            user-name-attribute: username
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
   jwt:
     secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
     access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
-    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:86400}
+    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
   external-api:
     openf1-base-url: ${OPENF1_BASE_URL:https://api.openf1.org/v1}
     balldontlie-base-url: ${BALLDONTLIE_BASE_URL:https://api.balldontlie.io}

@@ -2,6 +2,7 @@ package dev.parallaxsports.auth.client;
 
 import dev.parallaxsports.auth.dto.VerificationEmailRequest;
 import dev.parallaxsports.core.config.properties.AlertProperties;
+import dev.parallaxsports.core.exception.UpstreamServiceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -11,7 +12,7 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 public class EmailVerificationClient {
 
-	private static final String VERIFICATION_PATH = "/api/email/verification";
+	private static final String VERIFICATION_PATH = "/internal/email/verify";
 
 	private final RestClient restClient;
 
@@ -32,6 +33,7 @@ public class EmailVerificationClient {
 			log.info("Verification email request sent to={}", request.to());
 		} catch (Exception ex) {
 			log.error("Failed to send verification email to={}: {}", request.to(), ex.getMessage());
+			throw new UpstreamServiceException("Failed to send verification email", ex);
 		}
 	}
 }

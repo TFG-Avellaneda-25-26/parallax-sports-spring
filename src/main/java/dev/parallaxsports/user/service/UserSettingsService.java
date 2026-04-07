@@ -24,10 +24,10 @@ public class UserSettingsService {
     public UserSettingsResponse upsert(Long userId, UpdateUserSettingsRequest request) {
         UserSettings settings = userSettingsRepository.findById(userId).orElseGet(UserSettings::new);
         settings.setUserId(userId);
-        settings.setTheme(request.theme() == null ? "system" : request.theme());
-        settings.setDefaultView(request.defaultView() == null ? "cards" : request.defaultView());
-        settings.setTimezone(request.timezone() == null ? "UTC" : request.timezone());
-        settings.setLocale(request.locale() == null ? "en" : request.locale());
+        if (request.theme() != null) settings.setTheme(request.theme());
+        if (request.defaultView() != null) settings.setDefaultView(request.defaultView());
+        if (request.timezone() != null) settings.setTimezone(request.timezone());
+        if (request.locale() != null) settings.setLocale(request.locale());
         settings.setUpdatedAt(OffsetDateTime.now());
         return toResponse(userSettingsRepository.save(settings));
     }

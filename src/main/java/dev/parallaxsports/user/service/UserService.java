@@ -5,8 +5,9 @@ import dev.parallaxsports.user.dto.UpdateUserRequest;
 import dev.parallaxsports.user.dto.UserResponse;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.repository.UserRepository;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,8 +16,8 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public List<UserResponse> findAll() {
-        return userRepository.findAll().stream().map(this::toResponse).toList();
+    public Page<UserResponse> findAll(Pageable pageable) {
+        return userRepository.findAll(pageable).map(this::toResponse);
     }
 
     public UserResponse findById(Long id) {
