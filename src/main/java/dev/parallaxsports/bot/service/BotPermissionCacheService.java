@@ -7,21 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-/**
- * Cache-aside service for bot command permission checks.
- *
- * <p>Flow:
- * <ol>
- *   <li>Check Redis for key {@code bot:cmd:{provider}:{providerSubject}}.</li>
- *   <li>On cache hit → return true (user is allowed).</li>
- *   <li>On cache miss → query {@link UserIdentityRepository} to check if the
- *       provider identity exists. If it does, cache the result in Redis with a
- *       1-day TTL and return true; otherwise return false.</li>
- * </ol>
- *
- * <p>The cache key must be evicted whenever the linked identity is removed:
- * call {@link #evict(String, String)} from account deletion or provider-unlink logic.
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
