@@ -19,10 +19,7 @@ public class BotPermissionCacheService {
     private final StringRedisTemplate stringRedisTemplate;
     private final UserIdentityRepository userIdentityRepository;
 
-    /**
-     * Returns true if the given provider user is allowed to execute commands.
-     * Uses Redis as a cache; falls back to the database on a miss.
-     */
+
     public boolean canExecuteCommand(String provider, String providerSubject) {
         String key = buildKey(provider, providerSubject);
 
@@ -32,7 +29,6 @@ public class BotPermissionCacheService {
                 return true;
             }
         } catch (Exception ex) {
-            // Redis unavailable — fall through to DB.
             log.warn("Bot permission Redis check failed, falling back to DB: {}", ex.getMessage());
         }
 
@@ -52,10 +48,7 @@ public class BotPermissionCacheService {
         return exists;
     }
 
-    /**
-     * Evicts the cached permission for a provider identity.
-     * Must be called when an account is deleted or a provider identity is unlinked.
-     */
+
     public void evict(String provider, String providerSubject) {
         try {
             stringRedisTemplate.delete(buildKey(provider, providerSubject));

@@ -68,7 +68,6 @@ public class AuthService {
 
 	public AuthResponse login(LoginRequest request, String clientIp, HttpServletResponse response) {
 		try {
-			// Delegate password verification to Spring Security AuthenticationManager.
 			authenticationManager.authenticate(
 				new UsernamePasswordAuthenticationToken(request.email(), request.password())
 			);
@@ -149,7 +148,6 @@ public class AuthService {
 					refreshTokenService.revokeByJti(jti);
 				}
 			} catch (JwtException | IllegalArgumentException ex) {
-				// Ignore invalid/expired tokens on logout — clear cookie regardless.
 				log.debug("Logout with invalid token (ignored): {}", ex.getMessage());
 			}
 		}
