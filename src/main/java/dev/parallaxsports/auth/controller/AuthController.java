@@ -8,6 +8,7 @@ import dev.parallaxsports.auth.dto.RegisterRequest;
 import dev.parallaxsports.auth.dto.VerifyEmailRequest;
 import dev.parallaxsports.auth.service.AuthService;
 import dev.parallaxsports.auth.service.EmailVerificationService;
+import dev.parallaxsports.auth.service.OAuthService;
 import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.core.exception.UnauthorizedException;
 import dev.parallaxsports.user.model.User;
@@ -19,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final AuthService authService;
+	private final OAuthService oAuthService;
 	private final EmailVerificationService emailVerificationService;
 
 	@PostMapping("/register")
@@ -96,5 +100,14 @@ public class AuthController {
 		return ResponseEntity.ok(new EmailVerificationResponse("Verification email sent"));
 	}
 
-	//TODO OAuth2
+	@DeleteMapping("/identities/{provider}/{providerSubject}")
+	public ResponseEntity<Void> unlinkIdentity(
+		@PathVariable String provider,
+		@PathVariable String providerSubject,
+		@AuthenticationPrincipal UserDetails userDetails
+	) {
+		User user = authService.resolveUserByEmail(userDetails.getUsername());
+		oAuthService.unlinkIdentity(user, provider, providerSubject);
+		return ResponseEntity.noContent().build();
+	}
 }

@@ -1,6 +1,9 @@
 package dev.parallaxsports.auth.service;
 
 import dev.parallaxsports.auth.model.AuthProvider;
+import dev.parallaxsports.bot.service.BotPermissionCacheService;
+import dev.parallaxsports.core.exception.ResourceNotFoundException;
+import dev.parallaxsports.core.exception.UnauthorizedException;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.model.UserIdentity;
 import dev.parallaxsports.user.repository.UserIdentityRepository;
@@ -12,6 +15,7 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 
@@ -22,6 +26,7 @@ public class OAuthService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
     private final UserIdentityRepository userIdentityRepository;
+    private final BotPermissionCacheService botPermissionCacheService;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -78,5 +83,21 @@ public class OAuthService extends DefaultOAuth2UserService {
                     userRequest.getClientRegistration().getRegistrationId(), ex.getMessage());
             throw new OAuth2AuthenticationException("Error processing identity for user");
         }
+    }
+
+    @Transactional
+    public void unlinkIdentity(User requestingUser, String provider, String providerSubject) {
+        UserIdentity identity = userIdentityRepository
+            .findByProviderAndProviderSubject(provider, providerSubject)
+            .orElseThrow(() -> new ResourceNotFoundException("Identity not found"));
+
+        if (!identity.getUser().getId().equals(requestingUser.getId())) {
+            throw new UnauthorizedException("Cannot unlink identity belonging to another user");
+        }
+
+        userIdentityRepository.delete(identity);
+        botPermissionCacheService.evict(provider, providerSubject);
+        log.info("Unlinked identity provider='{}' subject='{}' for user '{}'",
+            provider, providerSubject, requestingUser.getEmail());
     }
 }
