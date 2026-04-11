@@ -1,6 +1,7 @@
 package dev.parallaxsports.core.config;
 
 import dev.parallaxsports.core.config.properties.AppProperties;
+import dev.parallaxsports.core.config.properties.BotProperties;
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
 import dev.parallaxsports.core.config.properties.AlertProperties;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties({
     AppProperties.class,
+    BotProperties.class,
     JwtProperties.class,
     AlertProperties.class,
     ExternalApiProperties.class,

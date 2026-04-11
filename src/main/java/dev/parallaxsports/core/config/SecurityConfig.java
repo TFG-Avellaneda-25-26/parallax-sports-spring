@@ -4,6 +4,7 @@ import dev.parallaxsports.auth.security.JwtAuthenticationFilter;
 import dev.parallaxsports.auth.security.OAuth2SuccessHandler;
 import dev.parallaxsports.auth.security.UserDetailsServiceImpl;
 import dev.parallaxsports.auth.service.OAuthService;
+import dev.parallaxsports.bot.filter.BotApiKeyFilter;
 import dev.parallaxsports.core.exception.RestAccessDeniedHandler;
 import dev.parallaxsports.core.exception.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final BotApiKeyFilter botApiKeyFilter;
     private final UserDetailsServiceImpl userDetailsService;
     private final OAuthService oAuthService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
@@ -72,6 +74,7 @@ public class SecurityConfig {
                 .successHandler(oAuth2SuccessHandler)
             )
             .authenticationProvider(authenticationProvider())
+            .addFilterBefore(botApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         log.info("Security filter chain initialized: stateless JWT with ADMIN route protection");
