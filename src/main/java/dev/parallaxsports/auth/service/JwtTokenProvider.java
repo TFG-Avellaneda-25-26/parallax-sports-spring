@@ -24,9 +24,7 @@ import javax.crypto.SecretKey;
 public class JwtTokenProvider {
 
     private final JwtProperties jwtProperties;
-    // token_type lets us enforce that refresh tokens cannot be used as access tokens.
     private static final String TOKEN_TYPE_CLAIM = "token_type";
-    // role claim is included for downstream debugging/inspection; DB remains source of truth.
     private static final String ROLE_CLAIM = "role";
     private static final String EMAIL_VERIFIED_CLAIM = "email_verified";
     private SecretKey signingKey;

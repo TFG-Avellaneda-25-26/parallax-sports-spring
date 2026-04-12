@@ -8,10 +8,10 @@ import dev.parallaxsports.auth.dto.RegisterRequest;
 import dev.parallaxsports.auth.dto.VerifyEmailRequest;
 import dev.parallaxsports.auth.service.AuthService;
 import dev.parallaxsports.auth.service.EmailVerificationService;
+import dev.parallaxsports.auth.service.OAuthUserProvisioningService;
 import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.core.exception.UnauthorizedException;
 import dev.parallaxsports.user.model.User;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,31 +32,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final AuthService authService;
+	private final OAuthUserProvisioningService oAuthUserProvisioningService;
 	private final EmailVerificationService emailVerificationService;
 
 	@PostMapping("/register")
 	public ResponseEntity<AuthResponse> register(
 		@Valid @RequestBody RegisterRequest request,
-		HttpServletRequest servletRequest,
 		HttpServletResponse servletResponse
 	) {
-		return ResponseEntity.ok(authService.register(request, servletRequest.getRemoteAddr(), servletResponse));
+		return ResponseEntity.ok(authService.register(request, servletResponse));
 	}
 
 	@PostMapping("/login")
 	public ResponseEntity<AuthResponse> login(
 		@Valid @RequestBody LoginRequest request,
-		HttpServletRequest servletRequest,
 		HttpServletResponse servletResponse
 	) {
-		return ResponseEntity.ok(authService.login(request, servletRequest.getRemoteAddr(), servletResponse));
+		return ResponseEntity.ok(authService.login(request, servletResponse));
 	}
 
 	@PostMapping("/refresh")
 	public ResponseEntity<AuthResponse> refresh(
 		@CookieValue(name = RefreshTokenService.COOKIE_NAME, required = false) String cookieToken,
 		@RequestBody(required = false) RefreshTokenRequest body,
-		HttpServletRequest servletRequest,
 		HttpServletResponse servletResponse
 	) {
 		String token = cookieToken != null ? cookieToken
@@ -62,7 +62,7 @@ public class AuthController {
 		if (token == null || token.isBlank()) {
 			throw new UnauthorizedException("Refresh token required");
 		}
-		return ResponseEntity.ok(authService.refresh(token, servletRequest.getRemoteAddr(), servletResponse));
+		return ResponseEntity.ok(authService.refresh(token, servletResponse));
 	}
 
 	@PostMapping("/logout")
@@ -96,5 +96,14 @@ public class AuthController {
 		return ResponseEntity.ok(new EmailVerificationResponse("Verification email sent"));
 	}
 
-	//TODO OAuth2
+	@DeleteMapping("/identities/{provider}/{providerSubject}")
+	public ResponseEntity<Void> unlinkIdentity(
+		@PathVariable String provider,
+		@PathVariable String providerSubject,
+		@AuthenticationPrincipal UserDetails userDetails
+	) {
+		User user = authService.resolveUserByEmail(userDetails.getUsername());
+		oAuthUserProvisioningService.unlinkIdentity(user, provider, providerSubject);
+		return ResponseEntity.noContent().build();
+	}
 }

@@ -14,9 +14,6 @@ spring:
           max-wait: 2000ms
   application:
     name: parallax-sports-api
-  mvc:
-    problemdetails:
-      enabled: true
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
     username: ${DB_USER:postgres}
@@ -51,6 +48,10 @@ spring:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  cookie:
+    secure: ${COOKIE_SECURE:false}
+  bot:
+    api-key: ${BOT_API_KEY:dev-change-me-bot-api-key}
   jwt:
     secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
     access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}

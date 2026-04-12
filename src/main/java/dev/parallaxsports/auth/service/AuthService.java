@@ -3,6 +3,8 @@ package dev.parallaxsports.auth.service;
 import dev.parallaxsports.auth.dto.AuthResponse;
 import dev.parallaxsports.auth.dto.LoginRequest;
 import dev.parallaxsports.auth.dto.RegisterRequest;
+import dev.parallaxsports.auth.model.TokenType;
+import dev.parallaxsports.auth.security.UserDetailsServiceImpl;
 import dev.parallaxsports.core.exception.DuplicateResourceException;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.core.exception.UnauthorizedException;
@@ -33,8 +35,9 @@ public class AuthService {
 	private final JwtTokenProvider jwtTokenProvider;
 	private final EmailVerificationService emailVerificationService;
 	private final RefreshTokenService refreshTokenService;
+	private final UserDetailsServiceImpl userDetailsService;
 
-	public AuthResponse register(RegisterRequest request, String clientIp, HttpServletResponse response) {
+	public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
 		if (userRepository.existsByEmail(request.email())) {
 			throw new DuplicateResourceException("User already exists with email: " + request.email());
 		}
@@ -56,19 +59,11 @@ public class AuthService {
 			log.warn("Verification email could not be sent for user '{}': {}", saved.getEmail(), ex.getMessage());
 		}
 
-		String accessToken = jwtTokenProvider.issueAccessToken(saved);
-		String refreshToken = jwtTokenProvider.issueRefreshToken(saved);
-		Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
-
-		refreshTokenService.store(saved, refreshToken, refreshClaims, clientIp);
-		refreshTokenService.addRefreshTokenCookie(response, refreshToken);
-
-		return new AuthResponse(saved.getId(), accessToken, null, saved.isEmailVerified());
+		return issueAndSetCookies(saved, response);
 	}
 
-	public AuthResponse login(LoginRequest request, String clientIp, HttpServletResponse response) {
+	public AuthResponse login(LoginRequest request, HttpServletResponse response) {
 		try {
-			// Delegate password verification to Spring Security AuthenticationManager.
 			authenticationManager.authenticate(
 				new UsernamePasswordAuthenticationToken(request.email(), request.password())
 			);
@@ -83,17 +78,10 @@ public class AuthService {
 		User saved = userRepository.save(user);
 		log.info("User '{}' logged in", saved.getEmail());
 
-		String accessToken = jwtTokenProvider.issueAccessToken(saved);
-		String refreshToken = jwtTokenProvider.issueRefreshToken(saved);
-		Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
-
-		refreshTokenService.store(saved, refreshToken, refreshClaims, clientIp);
-		refreshTokenService.addRefreshTokenCookie(response, refreshToken);
-
-		return new AuthResponse(saved.getId(), accessToken, null, saved.isEmailVerified());
+		return issueAndSetCookies(saved, response);
 	}
 
-	public AuthResponse refresh(String refreshToken, String clientIp, HttpServletResponse response) {
+	public AuthResponse refresh(String refreshToken, HttpServletResponse response) {
 		Claims claims;
 		try {
 			claims = jwtTokenProvider.parseClaims(refreshToken);
@@ -108,11 +96,7 @@ public class AuthService {
 		User user = userRepository.findByEmail(subject)
 			.orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
-		UserDetails userDetails = org.springframework.security.core.userdetails.User
-			.withUsername(user.getEmail())
-			.password(user.getPasswordHash() == null ? "" : user.getPasswordHash())
-			.authorities("ROLE_" + user.getRole().name())
-			.build();
+		UserDetails userDetails = userDetailsService.loadUserByUsername(subject);
 
 		if (!jwtTokenProvider.isTokenValid(claims, userDetails, "refresh")) {
 			log.warn("Refresh token rejected by validation subject='{}'", subject);
@@ -133,11 +117,13 @@ public class AuthService {
 		String newRefreshToken = jwtTokenProvider.issueRefreshToken(user);
 		Claims newRefreshClaims = jwtTokenProvider.parseClaims(newRefreshToken);
 
-		refreshTokenService.rotateToken(jti, user, newRefreshToken, newRefreshClaims, clientIp);
-		refreshTokenService.addRefreshTokenCookie(response, newRefreshToken);
+		refreshTokenService.rotateToken(jti, user, newRefreshToken, newRefreshClaims);
+
+		refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, newRefreshToken);
+		refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, newAccessToken);
 
 		log.info("Tokens rotated for subject='{}'", user.getEmail());
-		return new AuthResponse(user.getId(), newAccessToken, null, user.isEmailVerified());
+		return new AuthResponse(user.getId(), user.isEmailVerified());
 	}
 
 	public void logout(String refreshToken, HttpServletResponse response) {
@@ -149,15 +135,24 @@ public class AuthService {
 					refreshTokenService.revokeByJti(jti);
 				}
 			} catch (JwtException | IllegalArgumentException ex) {
-				// Ignore invalid/expired tokens on logout — clear cookie regardless.
 				log.debug("Logout with invalid token (ignored): {}", ex.getMessage());
 			}
 		}
-		refreshTokenService.clearRefreshTokenCookie(response);
+		refreshTokenService.clearAuthCookies(response);
 	}
 
 	public User resolveUserByEmail(String email) {
 		return userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	}
+
+	private AuthResponse issueAndSetCookies(User user, HttpServletResponse response) {
+		String accessToken = jwtTokenProvider.issueAccessToken(user);
+		String refreshToken = jwtTokenProvider.issueRefreshToken(user);
+		Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
+		refreshTokenService.store(user, refreshToken, refreshClaims);
+		refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
+		refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
+		return new AuthResponse(user.getId(), user.isEmailVerified());
 	}
 }
