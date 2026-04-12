@@ -3,6 +3,7 @@ package dev.parallaxsports.auth.service;
 import dev.parallaxsports.auth.dto.AuthResponse;
 import dev.parallaxsports.auth.dto.LoginRequest;
 import dev.parallaxsports.auth.dto.RegisterRequest;
+import dev.parallaxsports.auth.model.TokenType;
 import dev.parallaxsports.core.exception.DuplicateResourceException;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.core.exception.UnauthorizedException;
@@ -61,9 +62,11 @@ public class AuthService {
 		Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
 
 		refreshTokenService.store(saved, refreshToken, refreshClaims, clientIp);
-		refreshTokenService.addRefreshTokenCookie(response, refreshToken);
 
-		return new AuthResponse(saved.getId(), accessToken, null, saved.isEmailVerified());
+		refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
+		refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
+
+		return new AuthResponse(saved.getId(), saved.isEmailVerified());
 	}
 
 	public AuthResponse login(LoginRequest request, String clientIp, HttpServletResponse response) {
@@ -87,9 +90,11 @@ public class AuthService {
 		Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
 
 		refreshTokenService.store(saved, refreshToken, refreshClaims, clientIp);
-		refreshTokenService.addRefreshTokenCookie(response, refreshToken);
 
-		return new AuthResponse(saved.getId(), accessToken, null, saved.isEmailVerified());
+		refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
+		refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
+
+		return new AuthResponse(saved.getId(), saved.isEmailVerified());
 	}
 
 	public AuthResponse refresh(String refreshToken, String clientIp, HttpServletResponse response) {
@@ -133,10 +138,12 @@ public class AuthService {
 		Claims newRefreshClaims = jwtTokenProvider.parseClaims(newRefreshToken);
 
 		refreshTokenService.rotateToken(jti, user, newRefreshToken, newRefreshClaims, clientIp);
-		refreshTokenService.addRefreshTokenCookie(response, newRefreshToken);
+
+		refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, newRefreshToken);
+		refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, newAccessToken);
 
 		log.info("Tokens rotated for subject='{}'", user.getEmail());
-		return new AuthResponse(user.getId(), newAccessToken, null, user.isEmailVerified());
+		return new AuthResponse(user.getId(), user.isEmailVerified());
 	}
 
 	public void logout(String refreshToken, HttpServletResponse response) {

@@ -29,6 +29,7 @@ public class OAuthService extends DefaultOAuth2UserService {
     private final BotPermissionCacheService botPermissionCacheService;
 
     @Override
+    @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         try {
             OAuth2User oAuth2User = super.loadUser(userRequest);
@@ -40,11 +41,13 @@ public class OAuthService extends DefaultOAuth2UserService {
             String username = authProvider.getUsername(oAuth2User);
             String email = oAuth2User.getAttribute("email");
 
-            User user = userIdentityRepository.findByProviderAndProviderSubject(subject, username)
-                    .map(UserIdentity::getUser)
+            UserIdentity identity = userIdentityRepository
+                    .findByProviderAndProviderSubject(registrationId, subject)
                     .orElse(null);
 
-            if (user == null) {
+            User user;
+
+            if (identity == null) {
                 log.info("New identity {} detected for email: {}", registrationId, email);
 
                 user = userRepository.findByEmail(email)
@@ -70,7 +73,15 @@ public class OAuthService extends DefaultOAuth2UserService {
                         .build();
 
                 userIdentityRepository.save(newIdentity);
-                user.addIdentity(newIdentity);
+
+                if (user.getIdentities() != null) {
+                    user.addIdentity(newIdentity);
+                }
+            } else {
+                user = identity.getUser();
+
+                identity.setProviderUsername(username);
+                identity.setProviderEmail(email);
             }
 
             user.setLastLoginAt(OffsetDateTime.now());
