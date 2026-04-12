@@ -31,7 +31,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
 
-		String requestContext = currentRequestContext(request);
 		String token = extractToken(request);
 
 		if (token == null) {
@@ -47,30 +46,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				UserDetails userDetails = userDetailsService.loadUserByUsername(subject);
 
 				if (jwtTokenProvider.isTokenValid(claims, userDetails, "access")) {
-
-					UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-							userDetails,
-							claims,
-							userDetails.getAuthorities()
-					);
-					authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-					SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+					String jti = claims.getId();
+					if (refreshTokenService.isAccessTokenBlacklisted(jti)) {
+						log.warn("Blacklisted access token rejected jti='{}' uri='{}'", jti, request.getRequestURI());
+					} else {
+						UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+								userDetails,
+								claims,
+								userDetails.getAuthorities()
+						);
+						authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+						SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+					}
 				}
 			}
 		} catch (JwtException | IllegalArgumentException ex) {
-			log.warn("JWT Validation failed: {} {}", ex.getMessage(), requestContext);
+			log.warn("JWT validation failed uri='{}': {}", request.getRequestURI(), ex.getMessage());
 		}
 
 		filterChain.doFilter(request, response);
-	}
-
-	private String currentRequestContext(HttpServletRequest request) {
-		if (request == null) {
-			return "uri=unknown ip=unknown";
-		}
-		String uri = request.getRequestURI() == null ? "unknown" : request.getRequestURI();
-		String ip = request.getRemoteAddr() == null ? "unknown" : request.getRemoteAddr();
-		return "uri='" + uri + "' ip='" + ip + "'";
 	}
 
 	private String extractToken(HttpServletRequest request) {

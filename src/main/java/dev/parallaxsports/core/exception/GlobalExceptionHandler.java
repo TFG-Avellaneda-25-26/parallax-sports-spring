@@ -9,8 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.RedisSystemException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -21,16 +24,12 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-/**
- * Central exception-to-ProblemDetail translator for application and domain errors.
- *
- * This class is responsible for semantic mapping: choosing the most appropriate
- * HTTP status, title, detail, and specific problem type for known exception categories.
- */
+
 @RestControllerAdvice
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String BASE = "/problems";
     private static final String typeNotFound = BASE + "/not-found";
@@ -45,109 +44,85 @@ public class GlobalExceptionHandler {
     private static final String typeConfigurationError = BASE + "/configuration-error";
     private static final String typeInternal = BASE + "/internal-error";
 
+
+    // -> Triggers: @Valid request-body field errors || Returns: Bad Request (400) + invalid_params
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+        MethodArgumentNotValidException ex,
+        HttpHeaders headers,
+        HttpStatusCode status,
+        WebRequest request
+    ) {
+        logHandled(HttpStatus.BAD_REQUEST, ex, request);
+        ProblemDetail problem = buildProblem(
+            typeValidation,
+            HttpStatus.BAD_REQUEST,
+            "Validation Error",
+            "Your request parameters did not validate.",
+            request
+        );
+        List<Map<String, String>> invalidParams = ex.getBindingResult().getFieldErrors().stream()
+            .map(error -> Map.of(
+                "name", error.getField(),
+                "reason", error.getDefaultMessage() == null ? "Invalid value" : error.getDefaultMessage()
+            ))
+            .toList();
+        problem.setProperty("invalid_params", invalidParams);
+        return ResponseEntity.badRequest().body(problem);
+    }
+
+    // -> Triggers: malformed JSON / unreadable request body || Returns: Bad Request (400)
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+        HttpMessageNotReadableException ex,
+        HttpHeaders headers,
+        HttpStatusCode status,
+        WebRequest request
+    ) {
+        logHandled(HttpStatus.BAD_REQUEST, ex, request);
+        return ResponseEntity.badRequest().body(
+            buildProblem(typeMalformedBody, HttpStatus.BAD_REQUEST, "Malformed Request Body", "Malformed request body", request)
+        );
+    }
+
     /*============================================================
       DOMAIN EXCEPTIONS
       Business-level errors related to resource state and rules
     ============================================================*/
 
     // -> Triggers: requested resource does not exist || Returns: Not Found (404)
-    /**
-     * Handles missing domain resources.
-     *
-     * @param ex domain exception with client-safe detail message
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 404
-     */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleNotFound(ResourceNotFoundException ex, WebRequest request) {
         logHandled(HttpStatus.NOT_FOUND, ex, request);
-        return buildProblem(
-            typeNotFound,
-            HttpStatus.NOT_FOUND,
-            "Resource Not Found",
-            ex.getMessage(),
-            request
-        );
+        return buildProblem(typeNotFound, HttpStatus.NOT_FOUND, "Resource Not Found", ex.getMessage(), request);
     }
 
     // -> Triggers: business rule validation fails || Returns: Bad Request (400)
-    /**
-     * Handles domain-specific bad request scenarios.
-     *
-     * @param ex domain exception with client-safe detail message
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 400
-     */
     @ExceptionHandler(BadRequestException.class)
     public ProblemDetail handleBadRequest(BadRequestException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
-        return buildProblem(
-            typeBadRequest,
-            HttpStatus.BAD_REQUEST,
-            "Bad Request",
-            ex.getMessage(),
-            request
-        );
+        return buildProblem(typeBadRequest, HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
     }
 
     // -> Triggers: app-level unauthorized flow || Returns: Unauthorized (401)
-    /**
-     * Handles explicit unauthorized exceptions thrown by application logic.
-     *
-     * @param ex unauthorized exception
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 401
-     */
     @ExceptionHandler(UnauthorizedException.class)
     public ProblemDetail handleUnauthorized(UnauthorizedException ex, WebRequest request) {
         logHandled(HttpStatus.UNAUTHORIZED, ex, request);
-        return buildProblem(
-            typeUnauthorized,
-            HttpStatus.UNAUTHORIZED,
-            "Unauthorized",
-            ex.getMessage(),
-            request
-        );
+        return buildProblem(typeUnauthorized, HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request);
     }
 
     // -> Triggers: duplicate business resource || Returns: Conflict (409)
-    /**
-     * Handles duplicate-resource cases (for example, repeated unique fields).
-     *
-     * @param ex duplicate exception
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 409
-     */
     @ExceptionHandler(DuplicateResourceException.class)
     public ProblemDetail handleDuplicate(DuplicateResourceException ex, WebRequest request) {
         logHandled(HttpStatus.CONFLICT, ex, request);
-        return buildProblem(
-            typeConflict,
-            HttpStatus.CONFLICT,
-            "Conflict",
-            ex.getMessage(),
-            request
-        );
+        return buildProblem(typeConflict, HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
     }
 
     // -> Triggers: invalid state transition / lifecycle conflict || Returns: Conflict (409)
-    /**
-     * Handles state transition conflicts in lifecycle-driven operations.
-     *
-     * @param ex state conflict exception with client-safe detail message
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 409
-     */
     @ExceptionHandler(StateConflictException.class)
     public ProblemDetail handleStateConflict(StateConflictException ex, WebRequest request) {
         logHandled(HttpStatus.CONFLICT, ex, request);
-        return buildProblem(
-            typeConflict,
-            HttpStatus.CONFLICT,
-            "Conflict",
-            ex.getMessage(),
-            request
-        );
+        return buildProblem(typeConflict, HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
     }
 
     /*============================================================
@@ -156,44 +131,19 @@ public class GlobalExceptionHandler {
     ============================================================*/
 
     // -> Triggers: DB integrity violation || Returns: Conflict (409) or Bad Request (400)
-    /**
-     * Translates low-level data integrity violations to stable API responses.
-     *
-     * @param ex data integrity exception from persistence layer
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 409 or 400
-     */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex, WebRequest request) {
         String reason = extractMostSpecificMessage(ex).toLowerCase();
         if (reason.contains("unique") || reason.contains("duplicate")) {
             logHandled(HttpStatus.CONFLICT, ex, request);
-            return buildProblem(
-                typeConflict,
-                HttpStatus.CONFLICT,
-                "Conflict",
-                "Resource conflicts with an existing record",
-                request
-            );
+            return buildProblem(typeConflict, HttpStatus.CONFLICT, "Conflict", "Resource conflicts with an existing record", request);
         }
         if (reason.contains("check constraint") || reason.contains("foreign key")) {
             logHandled(HttpStatus.BAD_REQUEST, ex, request);
-            return buildProblem(
-                typeBadRequest,
-                HttpStatus.BAD_REQUEST,
-                "Bad Request",
-                "Request violates data constraints",
-                request
-            );
+            return buildProblem(typeBadRequest, HttpStatus.BAD_REQUEST, "Bad Request", "Request violates data constraints", request);
         }
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
-        return buildProblem(
-            typeBadRequest,
-            HttpStatus.BAD_REQUEST,
-            "Bad Request",
-            "Invalid data",
-            request
-        );
+        return buildProblem(typeBadRequest, HttpStatus.BAD_REQUEST, "Bad Request", "Invalid data", request);
     }
 
     /*============================================================
@@ -201,136 +151,44 @@ public class GlobalExceptionHandler {
       Authentication and authorization boundaries
     ============================================================*/
 
-    // -> Triggers: authenticated user lacks permission || Returns: Forbidden (403)
-    /**
-     * Handles authorization denials for protected resources.
-     *
-     * @param ex access denied exception
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 403
-     */
+    // -> Triggers: authenticated user lacks permission (e.g. @RequiresVerifiedEmail AOP) || Returns: Forbidden (403)
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
         logHandled(HttpStatus.FORBIDDEN, ex, request);
-        return buildProblem(
-            typeForbidden,
-            HttpStatus.FORBIDDEN,
-            "Forbidden",
-            "Access denied",
-            request
-        );
+        return buildProblem(typeForbidden, HttpStatus.FORBIDDEN, "Forbidden", "Access denied", request);
     }
 
-    // -> Triggers: Spring Security auth failure (includes BadCredentialsException) || Returns: Unauthorized (401)
-    /**
-     * Handles Spring Security authentication failures.
-     *
-     * @param ex authentication exception (includes bad credentials and similar auth errors)
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 401
-     */
+    // -> Triggers: Spring Security auth failure thrown from application code || Returns: Unauthorized (401)
     @ExceptionHandler(AuthenticationException.class)
     public ProblemDetail handleAuthenticationFailure(AuthenticationException ex, WebRequest request) {
         logHandled(HttpStatus.UNAUTHORIZED, ex, request);
-        return buildProblem(
-            typeUnauthorized,
-            HttpStatus.UNAUTHORIZED,
-            "Unauthorized",
-            "Invalid credentials",
-            request
-        );
+        return buildProblem(typeUnauthorized, HttpStatus.UNAUTHORIZED, "Unauthorized", "Invalid credentials", request);
     }
 
     /*============================================================
       VALIDATION EXCEPTIONS
-      Bean validation and request body parsing failures
+      Bean validation constraint failures
     ============================================================*/
 
-    // -> Triggers: method parameter constraint violations || Returns: Bad Request (400)
-    /**
-     * Handles method-level constraint validation errors.
-     *
-     * @param ex constraint violation exception
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 400 and violation map
-     */
+    // -> Triggers: method parameter constraint violations || Returns: Bad Request (400) + invalid_params
     @ExceptionHandler(ConstraintViolationException.class)
     public ProblemDetail handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_REQUEST, ex, request);
-        ProblemDetail problemDetail = buildProblem(
+        ProblemDetail problem = buildProblem(
             typeValidation,
             HttpStatus.BAD_REQUEST,
             "Validation Error",
             "Your request parameters did not validate.",
             request
         );
-        List<Map<String, String>> invalidParams = ex.getConstraintViolations()
-            .stream()
-            .map(violation ->
-                Map.of(
-                    "name",
-                    violation.getPropertyPath().toString(),
-                    "reason",
-                    violation.getMessage() == null ? "Invalid value" : violation.getMessage()
-                )
-            )
+        List<Map<String, String>> invalidParams = ex.getConstraintViolations().stream()
+            .map(violation -> Map.of(
+                "name", violation.getPropertyPath().toString(),
+                "reason", violation.getMessage() == null ? "Invalid value" : violation.getMessage()
+            ))
             .toList();
-        problemDetail.setProperty("invalid_params", invalidParams);
-        return problemDetail;
-    }
-
-    // -> Triggers: @Valid request-body field errors || Returns: Bad Request (400)
-    /**
-     * Handles bean validation failures for request body DTOs.
-     *
-     * @param ex method argument validation exception
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 400 and field error map
-     */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleMethodArgumentNotValid(MethodArgumentNotValidException ex, WebRequest request) {
-        logHandled(HttpStatus.BAD_REQUEST, ex, request);
-        ProblemDetail problemDetail = buildProblem(
-            typeValidation,
-            HttpStatus.BAD_REQUEST,
-            "Validation Error",
-            "Your request parameters did not validate.",
-            request
-        );
-        List<Map<String, String>> invalidParams = ex.getBindingResult()
-            .getFieldErrors()
-            .stream()
-            .map(error ->
-                Map.of(
-                    "name",
-                    error.getField(),
-                    "reason",
-                    error.getDefaultMessage() == null ? "Invalid value" : error.getDefaultMessage()
-                )
-            )
-            .collect(Collectors.toList());
-        problemDetail.setProperty("invalid_params", invalidParams);
-        return problemDetail;
-    }
-
-    // -> Triggers: malformed JSON / unreadable request body || Returns: Bad Request (400)
-    /**
-     * Handles JSON parse and request-body deserialization failures.
-     *
-     * @param ex unreadable message exception
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 400
-     */
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ProblemDetail handleHttpMessageNotReadable(HttpMessageNotReadableException ex, WebRequest request) {
-        logHandled(HttpStatus.BAD_REQUEST, ex, request);
-        return buildProblem(
-            typeMalformedBody,
-            HttpStatus.BAD_REQUEST,
-            "Malformed Request Body",
-            "Malformed request body",
-            request
-        );
+        problem.setProperty("invalid_params", invalidParams);
+        return problem;
     }
 
     /*============================================================
@@ -339,57 +197,22 @@ public class GlobalExceptionHandler {
     ============================================================*/
 
     // -> Triggers: explicit status raised by lower application layers || Returns: propagated status
-    /**
-     * Preserves explicit HTTP status semantics from ResponseStatusException.
-     *
-     * @param ex status exception carrying status code and optional reason
-     * @param request current web request
-     * @return RFC ProblemDetail payload with propagated status and detail
-     */
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail handleResponseStatus(ResponseStatusException ex, WebRequest request) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         logHandled(status, ex, request);
         String detail = ex.getReason() == null ? status.getReasonPhrase() : ex.getReason();
-
-        // Keep explicit semantics minimal here; response advice upgrades about:blank to a concrete type URI.
-        return buildProblem(
-            "about:blank",
-            status,
-            status.getReasonPhrase(),
-            detail,
-            request
-        );
+        return buildProblem("about:blank", status, status.getReasonPhrase(), detail, request);
     }
 
     // -> Triggers: upstream dependency returned an error response || Returns: Bad Gateway (502)
-    /**
-     * Handles upstream service failures returned by external dependencies.
-     *
-     * @param ex upstream exception with client-safe detail message
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 502
-     */
     @ExceptionHandler(UpstreamServiceException.class)
     public ProblemDetail handleUpstreamService(UpstreamServiceException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_GATEWAY, ex, request);
-        return buildProblem(
-            typeBadGateway,
-            HttpStatus.BAD_GATEWAY,
-            "Bad Gateway",
-            ex.getMessage(),
-            request
-        );
+        return buildProblem(typeBadGateway, HttpStatus.BAD_GATEWAY, "Bad Gateway", ex.getMessage(), request);
     }
 
     // -> Triggers: Redis or dependent service temporarily unavailable || Returns: Service Unavailable (503)
-    /**
-     * Handles temporary infrastructure unavailability from runtime dependencies.
-     *
-     * @param ex runtime exception from service infrastructure dependencies
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 503
-     */
     @ExceptionHandler({
         ServiceUnavailableException.class,
         RedisConnectionFailureException.class,
@@ -407,63 +230,23 @@ public class GlobalExceptionHandler {
     }
 
     // -> Triggers: outbound HTTP client call failed || Returns: Bad Gateway (502)
-    /**
-     * Handles transport-level outbound HTTP failures to external services.
-     *
-     * @param ex REST client exception from outbound integration path
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 502
-     */
     @ExceptionHandler(RestClientException.class)
     public ProblemDetail handleRestClientException(RestClientException ex, WebRequest request) {
         logHandled(HttpStatus.BAD_GATEWAY, ex, request);
-        return buildProblem(
-            typeBadGateway,
-            HttpStatus.BAD_GATEWAY,
-            "Bad Gateway",
-            "Upstream service request failed",
-            request
-        );
+        return buildProblem(typeBadGateway, HttpStatus.BAD_GATEWAY, "Bad Gateway", "Upstream service request failed", request);
     }
 
-    // -> Triggers: missing/invalid runtime configuration || Returns: Internal Server Error (500)
-    /**
-     * Handles runtime system configuration failures that block normal operation.
-     *
-    * Example: when the basketball API key is not configured
-    * (`app.external-api.balldontlie-api-key`),
-     * basketball sync endpoints cannot execute and should return an explicit
-     * service-unavailable/configuration problem shape instead of a generic 500.
-     *
-     * @param ex configuration exception with operator-facing detail message
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 503 for missing required runtime config,
-     *         otherwise status 500
-     */
+    // -> Triggers: missing/invalid runtime configuration || Returns: Internal Server Error (500) or Service Unavailable (503)
     @ExceptionHandler(SystemConfigurationException.class)
     public ProblemDetail handleSystemConfiguration(SystemConfigurationException ex, WebRequest request) {
         String message = ex.getMessage() == null ? "System configuration error" : ex.getMessage();
         boolean missingRequiredConfig = message.toLowerCase().contains("must be configured");
-
         if (missingRequiredConfig) {
             logHandled(HttpStatus.SERVICE_UNAVAILABLE, ex, request);
-            return buildProblem(
-                typeConfigurationError,
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "Service Unavailable",
-                message,
-                request
-            );
+            return buildProblem(typeConfigurationError, HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", message, request);
         }
-
         logHandled(HttpStatus.INTERNAL_SERVER_ERROR, ex, request);
-        return buildProblem(
-            typeInternal,
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "Internal Server Error",
-            message,
-            request
-        );
+        return buildProblem(typeInternal, HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", message, request);
     }
 
     /*============================================================
@@ -472,23 +255,10 @@ public class GlobalExceptionHandler {
     ============================================================*/
 
     // -> Triggers: unhandled exception fallback || Returns: Internal Server Error (500)
-    /**
-     * Handles uncaught exceptions not matched by more specific handlers.
-     *
-     * @param ex unexpected exception
-     * @param request current web request
-     * @return RFC ProblemDetail payload with status 500
-     */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex, WebRequest request) {
         logHandled(HttpStatus.INTERNAL_SERVER_ERROR, ex, request);
-        return buildProblem(
-            typeInternal,
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "Internal Server Error",
-            "An unexpected error occurred",
-            request
-        );
+        return buildProblem(typeInternal, HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "An unexpected error occurred", request);
     }
 
     /*============================================================
@@ -496,49 +266,19 @@ public class GlobalExceptionHandler {
       Logging, payload shaping, and DB message extraction
     ============================================================*/
 
-    /**
-     * Writes structured exception logs for observability pipelines.
-     *
-     * @param status HTTP status that will be returned
-     * @param ex exception to log
-     * @param request current web request
-     */
     private void logHandled(HttpStatus status, Throwable ex, WebRequest request) {
         String path = requestPath(request);
         String exceptionType = ex == null ? "UnknownException" : ex.getClass().getSimpleName();
         String message = ex == null || ex.getMessage() == null ? "" : ex.getMessage();
-
         if (status.is5xxServerError()) {
-            log.error(
-                "api_exception status={} path='{}' exception='{}' message='{}'",
-                status.value(),
-                path,
-                exceptionType,
-                message,
-                ex
-            );
+            log.error("api_exception status={} path='{}' exception='{}' message='{}'",
+                status.value(), path, exceptionType, message, ex);
             return;
         }
-
-        log.warn(
-            "api_exception status={} path='{}' exception='{}' message='{}'",
-            status.value(),
-            path,
-            exceptionType,
-            message
-        );
+        log.warn("api_exception status={} path='{}' exception='{}' message='{}'",
+            status.value(), path, exceptionType, message);
     }
 
-    /**
-     * Builds a ProblemDetail payload with semantic type, status, title, detail, and instance path.
-     *
-     * @param type problem type URI
-     * @param status HTTP status for the response
-     * @param title short problem title
-     * @param detail client-safe detail message
-     * @param request current web request
-     * @return initialized ProblemDetail object
-     */
     private ProblemDetail buildProblem(String type, HttpStatus status, String title, String detail, WebRequest request) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
         problemDetail.setType(URI.create(type));
@@ -551,24 +291,12 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    /**
-     * Extracts request path for logs and ProblemDetail instance field.
-     *
-     * @param request current web request
-     * @return request URI or "unknown" when not running in servlet context
-     */
     private String requestPath(WebRequest request) {
         return request instanceof ServletWebRequest servletWebRequest
             ? servletWebRequest.getRequest().getRequestURI()
             : "unknown";
     }
 
-    /**
-     * Extracts the deepest available database error message.
-     *
-     * @param ex data integrity violation exception
-     * @return most specific cause message, or fallback exception message, or empty string
-     */
     private String extractMostSpecificMessage(DataIntegrityViolationException ex) {
         Throwable mostSpecificCause = ex.getMostSpecificCause();
         if (mostSpecificCause != null && mostSpecificCause.getMessage() != null) {

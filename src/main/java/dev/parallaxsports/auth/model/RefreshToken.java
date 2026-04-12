@@ -36,9 +36,6 @@ public class RefreshToken {
     @Column(name = "token_hash", nullable = false)
     private String tokenHash;
 
-    @Column(name = "ip_address")
-    private String ipAddress;
-
     @Column(name = "expires_at", nullable = false)
     private OffsetDateTime expiresAt;
 
