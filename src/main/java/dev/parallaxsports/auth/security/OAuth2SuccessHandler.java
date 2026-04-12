@@ -10,6 +10,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -19,11 +21,15 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationSuccess(@NonNull HttpServletRequest request,
@@ -34,22 +40,27 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String email = oAuth2User.getAttribute("email");
 
         if (email == null) {
-            throw new RuntimeException("Email not provided by OAuth2 provider");
+            log.warn("OAuth2 login failed: provider did not supply an email address");
+            getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/auth/callback?error=oauth_failed");
+            return;
         }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found after OAuth2 login: " + email));
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            log.warn("OAuth2 login failed: no user found for email='{}' — OAuthService should have created one", email);
+            getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/auth/callback?error=oauth_failed");
+            return;
+        }
 
         String accessToken = jwtTokenProvider.issueAccessToken(user);
         String refreshToken = jwtTokenProvider.issueRefreshToken(user);
         Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
 
-        refreshTokenService.store(user, refreshToken, refreshClaims, request.getRemoteAddr());
+        refreshTokenService.store(user, refreshToken, refreshClaims);
 
         refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
         refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
 
-        String targetUrl = "http://localhost:4200/auth/callback";
-        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+        getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/auth/callback");
     }
 }
