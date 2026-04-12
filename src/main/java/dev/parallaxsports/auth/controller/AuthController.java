@@ -12,7 +12,6 @@ import dev.parallaxsports.auth.service.OAuthService;
 import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.core.exception.UnauthorizedException;
 import dev.parallaxsports.user.model.User;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,26 +38,23 @@ public class AuthController {
 	@PostMapping("/register")
 	public ResponseEntity<AuthResponse> register(
 		@Valid @RequestBody RegisterRequest request,
-		HttpServletRequest servletRequest,
 		HttpServletResponse servletResponse
 	) {
-		return ResponseEntity.ok(authService.register(request, servletRequest.getRemoteAddr(), servletResponse));
+		return ResponseEntity.ok(authService.register(request, servletResponse));
 	}
 
 	@PostMapping("/login")
 	public ResponseEntity<AuthResponse> login(
 		@Valid @RequestBody LoginRequest request,
-		HttpServletRequest servletRequest,
 		HttpServletResponse servletResponse
 	) {
-		return ResponseEntity.ok(authService.login(request, servletRequest.getRemoteAddr(), servletResponse));
+		return ResponseEntity.ok(authService.login(request, servletResponse));
 	}
 
 	@PostMapping("/refresh")
 	public ResponseEntity<AuthResponse> refresh(
 		@CookieValue(name = RefreshTokenService.COOKIE_NAME, required = false) String cookieToken,
 		@RequestBody(required = false) RefreshTokenRequest body,
-		HttpServletRequest servletRequest,
 		HttpServletResponse servletResponse
 	) {
 		String token = cookieToken != null ? cookieToken
@@ -66,7 +62,7 @@ public class AuthController {
 		if (token == null || token.isBlank()) {
 			throw new UnauthorizedException("Refresh token required");
 		}
-		return ResponseEntity.ok(authService.refresh(token, servletRequest.getRemoteAddr(), servletResponse));
+		return ResponseEntity.ok(authService.refresh(token, servletResponse));
 	}
 
 	@PostMapping("/logout")
