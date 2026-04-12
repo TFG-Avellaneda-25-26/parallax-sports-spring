@@ -25,9 +25,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		User user = userRepository.findByEmail(username)
 			.orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
 
-		if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-			throw new BadCredentialsException("Invalid credentials");
-		}
+//		if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+//			throw new BadCredentialsException("Invalid credentials");
+//		}
 
 		// ROLE_ prefix is required by hasRole("...") checks in SecurityConfig.
 		log.debug("Loaded security principal for '{}'", username);

@@ -1,5 +1,6 @@
 package dev.parallaxsports.auth.security;
 
+import dev.parallaxsports.auth.model.TokenType;
 import dev.parallaxsports.auth.service.JwtTokenProvider;
 import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.user.model.User;
@@ -44,9 +45,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
 
         refreshTokenService.store(user, refreshToken, refreshClaims, request.getRemoteAddr());
-        refreshTokenService.addRefreshTokenCookie(response, refreshToken);
 
-        String targetUrl = "http://localhost:4200/auth/callback?token=" + accessToken;
+        refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
+        refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
+
+        String targetUrl = "http://localhost:4200/auth/callback";
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

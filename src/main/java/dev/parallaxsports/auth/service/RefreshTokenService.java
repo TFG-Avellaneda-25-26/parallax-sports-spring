@@ -1,6 +1,7 @@
 package dev.parallaxsports.auth.service;
 
 import dev.parallaxsports.auth.model.RefreshToken;
+import dev.parallaxsports.auth.model.TokenType;
 import dev.parallaxsports.auth.repository.RefreshTokenRepository;
 import dev.parallaxsports.core.config.properties.JwtProperties;
 import dev.parallaxsports.user.model.User;
@@ -18,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -95,14 +98,16 @@ public class RefreshTokenService {
         return Boolean.TRUE.equals(stringRedisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti));
     }
 
+    public void addTokenCookie(HttpServletResponse response, TokenType type, String rawRefreshToken) {
+        ResponseCookie cookie = ResponseCookie.from(type.getCookieName(), rawRefreshToken)
+                .httpOnly(true)
+                .secure(false) // TODO: we change it when de deploy?
+                .path("/")
+                .maxAge(type.getExpiration())
+                .sameSite("Lax")
+                .build();
 
-    public void addRefreshTokenCookie(HttpServletResponse response, String rawRefreshToken) {
-        Cookie cookie = new Cookie(COOKIE_NAME, rawRefreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // TODO: we change it when de deploy?
-        cookie.setPath("/");
-        cookie.setMaxAge((int) jwtProperties.getRefreshTokenExpirationSeconds());
-        response.addCookie(cookie);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     public void clearRefreshTokenCookie(HttpServletResponse response) {
