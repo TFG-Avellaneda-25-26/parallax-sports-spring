@@ -43,7 +43,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final String typeServiceUnavailable = BASE + "/service-unavailable";
     private static final String typeConfigurationError = BASE + "/configuration-error";
     private static final String typeInternal = BASE + "/internal-error";
-a
 
 
     // -> Triggers: @Valid request-body field errors || Returns: Bad Request (400) + invalid_params
