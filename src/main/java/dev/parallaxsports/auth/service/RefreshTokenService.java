@@ -33,10 +33,6 @@ public class RefreshTokenService {
     private final StringRedisTemplate stringRedisTemplate;
     private final JwtProperties jwtProperties;
 
-    // -----------------------------------------------------------------
-    // Storage
-    // -----------------------------------------------------------------
-
     @Transactional
     public void store(User user, String rawToken, Claims claims, String clientIp) {
         String jti = claims.getId();
@@ -54,10 +50,6 @@ public class RefreshTokenService {
         log.debug("Stored refresh token jti='{}' userId={} expiresAt='{}'", jti, user.getId(), expiresAt);
     }
 
-    // -----------------------------------------------------------------
-    // Validation
-    // -----------------------------------------------------------------
-
     @Transactional(readOnly = true)
     public Optional<RefreshToken> validate(String jti, String rawToken) {
         return refreshTokenRepository.findById(jti)
@@ -65,10 +57,6 @@ public class RefreshTokenService {
             .filter(rt -> rt.getExpiresAt().isAfter(OffsetDateTime.now()))
             .filter(rt -> sha256hex(rawToken).equals(rt.getTokenHash()));
     }
-
-    // -----------------------------------------------------------------
-    // Rotation (revoke old + store new in one transaction)
-    // -----------------------------------------------------------------
 
     @Transactional
     public void rotateToken(String oldJti, User user, String newRawToken, Claims newClaims, String clientIp) {
@@ -78,10 +66,6 @@ public class RefreshTokenService {
         });
         store(user, newRawToken, newClaims, clientIp);
     }
-
-    // -----------------------------------------------------------------
-    // Revocation
-    // -----------------------------------------------------------------
 
     @Transactional
     public void revokeByJti(String jti) {
@@ -98,10 +82,6 @@ public class RefreshTokenService {
         log.info("Revoked {} refresh token(s) for userId={}", count, userId);
     }
 
-    // -----------------------------------------------------------------
-    // Redis blacklist for access tokens (used on critical security events)
-    // -----------------------------------------------------------------
-
     public void blacklistAccessToken(String jti, long ttlSeconds) {
         if (ttlSeconds > 0) {
             stringRedisTemplate.opsForValue().set(
@@ -115,14 +95,11 @@ public class RefreshTokenService {
         return Boolean.TRUE.equals(stringRedisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti));
     }
 
-    // -----------------------------------------------------------------
-    // Cookie helpers
-    // -----------------------------------------------------------------
 
     public void addRefreshTokenCookie(HttpServletResponse response, String rawRefreshToken) {
         Cookie cookie = new Cookie(COOKIE_NAME, rawRefreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // TODO: set to true in production (HTTPS)
+        cookie.setSecure(false); // TODO: we change it when de deploy?
         cookie.setPath("/");
         cookie.setMaxAge((int) jwtProperties.getRefreshTokenExpirationSeconds());
         response.addCookie(cookie);
@@ -136,10 +113,6 @@ public class RefreshTokenService {
         cookie.setMaxAge(0);
         response.addCookie(cookie);
     }
-
-    // -----------------------------------------------------------------
-    // Internal
-    // -----------------------------------------------------------------
 
     private static String sha256hex(String input) {
         try {
