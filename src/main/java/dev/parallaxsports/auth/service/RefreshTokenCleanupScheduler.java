@@ -15,10 +15,7 @@ public class RefreshTokenCleanupScheduler {
 
     private final RefreshTokenRepository refreshTokenRepository;
 
-    /**
-     * Runs daily at 03:00 UTC.
-     * Deletes rows that are either expired or were revoked more than 30 days ago.
-     */
+
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanupExpiredAndOldRevoked() {
