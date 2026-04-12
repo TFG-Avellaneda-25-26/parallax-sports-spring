@@ -8,7 +8,7 @@ import dev.parallaxsports.auth.dto.RegisterRequest;
 import dev.parallaxsports.auth.dto.VerifyEmailRequest;
 import dev.parallaxsports.auth.service.AuthService;
 import dev.parallaxsports.auth.service.EmailVerificationService;
-import dev.parallaxsports.auth.service.OAuthService;
+import dev.parallaxsports.auth.service.OAuthUserProvisioningService;
 import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.core.exception.UnauthorizedException;
 import dev.parallaxsports.user.model.User;
@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final AuthService authService;
-	private final OAuthService oAuthService;
+	private final OAuthUserProvisioningService oAuthUserProvisioningService;
 	private final EmailVerificationService emailVerificationService;
 
 	@PostMapping("/register")
@@ -103,7 +103,7 @@ public class AuthController {
 		@AuthenticationPrincipal UserDetails userDetails
 	) {
 		User user = authService.resolveUserByEmail(userDetails.getUsername());
-		oAuthService.unlinkIdentity(user, provider, providerSubject);
+		oAuthUserProvisioningService.unlinkIdentity(user, provider, providerSubject);
 		return ResponseEntity.noContent().build();
 	}
 }
