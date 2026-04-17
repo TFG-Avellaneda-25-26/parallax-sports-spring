@@ -1,12 +1,15 @@
 package dev.parallaxsports.external.sync;
 
 import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
+import dev.parallaxsports.sport.event.service.EventFeedService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +21,7 @@ public class ExternalApiDailyScheduler {
 
     private final List<ExternalApiDailySyncJob> jobs;
     private final ExternalSyncProperties externalSyncProperties;
+    private final RedisTemplate<String, Object> redisTemplate;
 
         /*============================================================
             SCHEDULED ENTRYPOINT
@@ -86,6 +90,20 @@ public class ExternalApiDailyScheduler {
             }
         }
 
+        invalidateEventFeedCache();
+
         return new ExternalSyncExecutionResult(executionDate, jobs.size(), succeeded, failed);
+    }
+
+    private void invalidateEventFeedCache() {
+        try {
+            Set<String> keys = redisTemplate.keys(EventFeedService.CACHE_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.info("Invalidated {} event feed cache entries", keys.size());
+            }
+        } catch (Exception e) {
+            log.warn("Event feed cache invalidation failed: {}", e.getMessage());
+        }
     }
 }
