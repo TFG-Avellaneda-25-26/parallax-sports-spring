@@ -3,6 +3,7 @@ target/
 
 ## Local API tooling and secrets
 postman/
+api-secrets.local.yml
 
 ## Java build and runtime files
 *.class
