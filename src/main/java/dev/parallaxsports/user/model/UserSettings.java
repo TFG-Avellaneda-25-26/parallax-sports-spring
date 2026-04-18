@@ -28,7 +28,7 @@ import org.hibernate.annotations.Check;
 @Entity
 @Table(name = "user_settings")
 @Check(constraints = "theme in ('light', 'dark', 'system')")
-@Check(constraints = "default_view in ('cards', 'table', 'calendar')")
+@Check(constraints = "default_view in ('cards', 'table')")
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString(exclude = "user")
 public class UserSettings {

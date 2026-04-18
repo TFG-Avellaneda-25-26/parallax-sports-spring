@@ -48,7 +48,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             log.warn("OAuth2 login failed: no user found for email='{}' — OAuthService should have created one", email);
-            getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/auth/callback?error=oauth_failed");
+            getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/");
             return;
         }
 
@@ -61,6 +61,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
         refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
 
-        getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/auth/callback");
+        getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/dashboard");
     }
 }
