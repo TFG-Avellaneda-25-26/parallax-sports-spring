@@ -4,7 +4,6 @@ spring:
       - optional:classpath:api-secrets.yml
   data:
     redis:
-      host: localhost
       port: 6379
       password:
       timeout: 2000
@@ -17,10 +16,6 @@ spring:
           max-wait: 2000ms
   application:
     name: parallax-sports-api
-  datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: postgres
-    password: 12345
   jpa:
     open-in-view: false
   security:
@@ -28,8 +23,6 @@ spring:
       client:
         registration:
           discord:
-            client-id: dev-change-me-oauth-discord-id
-            client-secret: dev-change-me-oauth-discord-secret
             scope:
               - identify
               - email
@@ -37,8 +30,6 @@ spring:
             redirect-uri: "http://localhost:8080/login/oauth2/code/discord"
             client-name: Discord
           google:
-            client-id: dev-change-me-oauth-google-id
-            client-secret: dev-change-me-oauth-google-secret
             scope:
               - email
               - profile
@@ -53,16 +44,12 @@ app:
   frontend-url: http://localhost:4200
   cookie:
     secure: false
-  bot:
-    api-key: dev-change-me-bot-api-key
   jwt:
-    secret: dev-change-me-jwt-secret-32chars
     access-token-expiration-seconds: 900
     refresh-token-expiration-seconds: 604800
   external-api:
     openf1-base-url: https://api.openf1.org/v1
     balldontlie-base-url: https://api.balldontlie.io
-    balldontlie-api-key:
   external-sync:
     enabled: true
     zone-id: UTC
@@ -88,9 +75,6 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
-
-observability:
-  loki-url: http://localhost:3100
 
 management:
   endpoints:
