@@ -4,12 +4,14 @@ import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
 import dev.parallaxsports.sport.event.service.EventFeedService;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -97,8 +99,15 @@ public class ExternalApiDailyScheduler {
 
     private void invalidateEventFeedCache() {
         try {
-            Set<String> keys = redisTemplate.keys(EventFeedService.CACHE_PREFIX + "*");
-            if (keys != null && !keys.isEmpty()) {
+            ScanOptions options = ScanOptions.scanOptions()
+                .match(EventFeedService.CACHE_PREFIX + "*")
+                .count(100)
+                .build();
+            List<String> keys = new ArrayList<>();
+            try (Cursor<String> cursor = redisTemplate.scan(options)) {
+                cursor.forEachRemaining(keys::add);
+            }
+            if (!keys.isEmpty()) {
                 redisTemplate.delete(keys);
                 log.info("Invalidated {} event feed cache entries", keys.size());
             }
