@@ -1,7 +1,10 @@
 spring:
+  config:
+    import:
+      - optional:classpath:api-secrets.yml
   data:
     redis:
-      host: ${REDIS_HOST://localhost}
+      host: localhost
       port: 6379
       password:
       timeout: 2000
@@ -15,9 +18,9 @@ spring:
   application:
     name: parallax-sports-api
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:12345}
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: 12345
   jpa:
     open-in-view: false
   security:
@@ -25,8 +28,8 @@ spring:
       client:
         registration:
           discord:
-            client-id: ${OAUTH_DISCORD_ID:dev-change-me-oauth-discord-id}
-            client-secret: ${OAUTH_DISCORD_SECRET:dev-change-me-oauth-discord-secret}
+            client-id: dev-change-me-oauth-discord-id
+            client-secret: dev-change-me-oauth-discord-secret
             scope:
               - identify
               - email
@@ -34,8 +37,8 @@ spring:
             redirect-uri: "http://localhost:8080/login/oauth2/code/discord"
             client-name: Discord
           google:
-            client-id: ${OAUTH_GOOGLE_ID:dev-change-me-oauth-google-id}
-            client-secret: ${OAUTH_GOOGLE_SECRET:dev-change-me-oauth-google-secret}
+            client-id: dev-change-me-oauth-google-id
+            client-secret: dev-change-me-oauth-google-secret
             scope:
               - email
               - profile
@@ -47,36 +50,36 @@ spring:
             user-name-attribute: username
 
 app:
-  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  frontend-url: http://localhost:4200
   cookie:
-    secure: ${COOKIE_SECURE:false}
+    secure: false
   bot:
-    api-key: ${BOT_API_KEY:dev-change-me-bot-api-key}
+    api-key: dev-change-me-bot-api-key
   jwt:
-    secret: ${JWT_SECRET:dev-change-me-jwt-secret-32chars}
-    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
-    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
+    secret: dev-change-me-jwt-secret-32chars
+    access-token-expiration-seconds: 900
+    refresh-token-expiration-seconds: 604800
   external-api:
-    openf1-base-url: ${OPENF1_BASE_URL:https://api.openf1.org/v1}
-    balldontlie-base-url: ${BALLDONTLIE_BASE_URL:https://api.balldontlie.io}
-    balldontlie-api-key: ${BALLDONTLIE_API_KEY:}
+    openf1-base-url: https://api.openf1.org/v1
+    balldontlie-base-url: https://api.balldontlie.io
+    balldontlie-api-key:
   external-sync:
-    enabled: ${EXTERNAL_SYNC_ENABLED:true}
-    zone-id: ${EXTERNAL_SYNC_ZONE_ID:UTC}
-    daily-cron: ${EXTERNAL_SYNC_DAILY_CRON:0 30 0 * * *}
-    years-back: ${EXTERNAL_SYNC_YEARS_BACK:0}
-    years-forward: ${EXTERNAL_SYNC_YEARS_FORWARD:1}
-    nba-enabled: ${EXTERNAL_SYNC_NBA_ENABLED:true}
-    wnba-enabled: ${EXTERNAL_SYNC_WNBA_ENABLED:true}
+    enabled: true
+    zone-id: UTC
+    daily-cron: 0 30 0 * * *
+    years-back: 0
+    years-forward: 1
+    nba-enabled: true
+    wnba-enabled: true
   alerts:
-    generation-enabled: ${ALERTS_GENERATION_ENABLED:true}
-    dispatch-enabled: ${ALERTS_DISPATCH_ENABLED:false}
-    dispatch-cron: ${ALERTS_DISPATCH_CRON:0 * * * * *}
-    stream-trim-enabled: ${ALERTS_STREAM_TRIM_ENABLED:true}
-    stream-max-len: ${ALERTS_STREAM_MAX_LEN:200000}
-    http-fallback-enabled: ${ALERTS_HTTP_FALLBACK_ENABLED:false}
-    ktor-base-url: ${KTOR_ALERTS_BASE_URL:}
-    ktor-api-key: ${KTOR_ALERTS_API_KEY:}
+    generation-enabled: true
+    dispatch-enabled: false
+    dispatch-cron: 0 * * * * *
+    stream-trim-enabled: true
+    stream-max-len: 200000
+    http-fallback-enabled: false
+    ktor-base-url:
+    ktor-api-key:
 
 springdoc:
   api-docs:
@@ -87,7 +90,7 @@ springdoc:
     tags-sorter: alpha
 
 observability:
-  loki-url: ${LOKI_URL:http://localhost:3100}
+  loki-url: http://localhost:3100
 
 management:
   endpoints:
