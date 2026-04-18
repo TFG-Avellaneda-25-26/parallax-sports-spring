@@ -60,4 +60,7 @@ public class UserService {
             user.getCreatedAt(), user.getLastLoginAt()
         );
     }
+    public Boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
+    }
 }
