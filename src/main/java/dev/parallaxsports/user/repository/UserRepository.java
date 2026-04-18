@@ -15,7 +15,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     @Query("""
-        SELECT u FROM User u
+        SELECT DISTINCT u FROM User u
         LEFT JOIN FETCH u.settings
         LEFT JOIN FETCH u.identities
         LEFT JOIN FETCH u.sportSettings

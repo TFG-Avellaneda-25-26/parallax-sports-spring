@@ -57,9 +57,15 @@ public class EventFeedService {
         }
 
         Pageable limit = PageRequest.ofSize(size + 1);
-        List<Event> events = afterId == null
-            ? eventRepository.findAllByTimeBetween(from, to, limit)
-            : eventRepository.findAllByTimeBetweenAfterCursor(from, to, afterId, limit);
+        List<Event> events;
+        if (afterId == null) {
+            events = eventRepository.findAllByTimeBetween(from, to, limit);
+        } else {
+            if (!eventRepository.existsById(afterId)) {
+                throw new IllegalArgumentException("Invalid cursor: event id " + afterId + " not found");
+            }
+            events = eventRepository.findAllByTimeBetweenAfterCursor(from, to, afterId, limit);
+        }
 
         boolean hasMore = events.size() > size;
         if (hasMore) {
