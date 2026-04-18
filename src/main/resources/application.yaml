@@ -2,7 +2,7 @@ spring:
   config:
     import:
       - optional:classpath:api-secrets.yml
-      - optional:file:./api-secrets.local.yml
+      - optional:classpath:./api-secrets.local.yml
   data:
     redis:
       port: 6379
