@@ -1,17 +1,13 @@
 package dev.parallaxsports.user.controller;
 
-import dev.parallaxsports.user.dto.UpdateUserRequest;
-import dev.parallaxsports.user.dto.UserResponse;
+import dev.parallaxsports.user.dto.CurrentUserResponse;
 import dev.parallaxsports.user.service.UserService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,18 +18,15 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping
-    public Page<UserResponse> findAll(Pageable pageable) {
-        return userService.findAll(pageable);
+    @GetMapping("/me")
+    public ResponseEntity<CurrentUserResponse> me(@AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(userService.findCurrentUser(userDetails.getUsername()));
     }
 
-    @GetMapping("/{id}")
-    public UserResponse findById(@PathVariable Long id) {
-        return userService.findById(id);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
-        return ResponseEntity.ok(userService.update(id, request));
+    @GetMapping("email")
+    public Boolean emailExists(String email) {
+        return userService.existsByEmail(email);
     }
 }
