@@ -71,6 +71,7 @@ public class SecurityConfig {
                 // Permitir acceso público (sin ADMIN) a endpoints públicos por videojuego
                 .requestMatchers("/api/league-of-legends/**", "/api/valorant/**", "/api/dota2/**", "/api/counter-strike/**").permitAll()
                 .requestMatchers("/api/internal/alerts/**").permitAll()
+                    .requestMatchers("/api/admin/pandascore/**").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()

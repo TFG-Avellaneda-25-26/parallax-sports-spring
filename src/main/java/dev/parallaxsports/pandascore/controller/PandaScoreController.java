@@ -73,6 +73,7 @@ public class PandaScoreController {
             log.info("Requested PandaScore sync videogame={} pages={} perPage={}", videogame, pages, perPage);
 
             if (!ALLOWED_VIDEOGAMES.contains(videogame)) {
+                log.warn("Unsupported videogame requested: {}", videogame);
                 throw new BadRequestException("videogame not supported");
             }
 
@@ -85,14 +86,19 @@ public class PandaScoreController {
 
             int resolvedPerPage = perPage == null ? defaultPerPage : perPage;
             if (resolvedPerPage > maxPerPage) {
+                log.info("perPage={} exceeds max perPage={}, capping to max", resolvedPerPage, maxPerPage);
                 resolvedPerPage = maxPerPage;
             }
 
             if (pages > maxPages) {
+                log.warn("pages={} exceeds max pages={}", pages, maxPages);
                 throw new BadRequestException("pages value too large");
             }
 
+            log.info("Starting sync for videogame={} with pages={} perPage={}", videogame, pages, resolvedPerPage);
             PandaScoreSyncService.PandaScoreSyncResponse response = syncService.syncVideogame(videogame, pages, resolvedPerPage);
+            
+            log.info("Sync completed for videogame={}: fetched={} upserted={}", videogame, response.matchesFetched(), response.matchesUpserted());
             return new PandaScoreSyncResponse(
                 response.videogame(),
                 response.matchesFetched(),
@@ -102,8 +108,10 @@ public class PandaScoreController {
             log.warn("Bad request when syncing PandaScore: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Error syncing PandaScore for videogame={}", videogame, e);
-            throw e;
+            log.error("Unexpected error syncing PandaScore for videogame={}", videogame, e);
+            // En lugar de lanzar la excepción, retornar una respuesta con 0 matches
+            // para no generar un 500
+            return new PandaScoreSyncResponse(videogame, 0, 0);
         }
     }
 
