@@ -63,7 +63,7 @@ public class PandaScoreClient {
             perPage = maxPerPage;
         }
 
-        // Build URI
+        // Build URI without date filters (PandaScore API doesn't use filter[begin_at] and filter[end_at])
         String endpoint = VIDEOGAME_ENDPOINTS.get(videogame);
         String encodedApiKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
         String uri = endpoint 

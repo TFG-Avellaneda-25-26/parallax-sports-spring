@@ -26,8 +26,7 @@ public class ExternalApiDailyScheduler {
 
         /**
          * Triggers daily external synchronization using the configured cron schedule.
-         *
-         * @return no value; side effect is provider synchronization and structured logs per provider
+         * Side effect is provider synchronization and structured logs per provider.
          */
     @Scheduled(cron = "${app.external-sync.daily-cron:0 30 0 * * *}", zone = "${app.external-sync.zone-id:UTC}")
     public void runDailySync() {

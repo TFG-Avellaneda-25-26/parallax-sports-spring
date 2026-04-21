@@ -13,6 +13,87 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     Optional<Event> findByExternalProviderAndExternalId(String externalProvider, String externalId);
 
+    @Query("""
+        SELECT e FROM Event e
+        JOIN FETCH e.sport s
+        LEFT JOIN FETCH e.competition c
+        WHERE e.externalProvider = :provider
+        ORDER BY e.startTimeUtc DESC
+        """)
+    List<Event> findByExternalProviderOrderByStartTimeUtcDesc(@Param("provider") String provider);
+
+    @Query("""
+        SELECT e FROM Event e
+        JOIN FETCH e.sport s
+        LEFT JOIN FETCH e.competition c
+        WHERE e.externalProvider = :provider
+          AND s.key = :sportKey
+        ORDER BY e.startTimeUtc DESC
+        """)
+    List<Event> findByExternalProviderAndSportKeyOrderByStartTimeUtcDesc(
+        @Param("provider") String provider,
+        @Param("sportKey") String sportKey
+    );
+
+    @Query("""
+        SELECT e FROM Event e
+        JOIN FETCH e.sport s
+        LEFT JOIN FETCH e.competition c
+        WHERE e.externalProvider = :provider
+          AND c.name = :competitionName
+        ORDER BY e.startTimeUtc DESC
+        """)
+    List<Event> findByExternalProviderAndCompetitionNameOrderByStartTimeUtcDesc(
+        @Param("provider") String provider,
+        @Param("competitionName") String competitionName
+    );
+
+    @Query("""
+        SELECT e FROM Event e
+        JOIN FETCH e.sport s
+        LEFT JOIN FETCH e.competition c
+        WHERE e.externalProvider = :provider
+          AND e.startTimeUtc BETWEEN :from AND :to
+        ORDER BY e.startTimeUtc DESC
+        """)
+    List<Event> findByExternalProviderAndStartTimeUtcBetweenOrderByStartTimeUtcDesc(
+        @Param("provider") String provider,
+        @Param("from") OffsetDateTime from,
+        @Param("to") OffsetDateTime to
+    );
+
+    @Query("""
+        SELECT e FROM Event e
+        JOIN FETCH e.sport s
+        LEFT JOIN FETCH e.competition c
+        WHERE e.externalProvider = :provider
+          AND s.key = :sportKey
+          AND e.startTimeUtc BETWEEN :from AND :to
+        ORDER BY e.startTimeUtc DESC
+        """)
+    List<Event> findByExternalProviderAndSportKeyAndStartTimeUtcBetweenOrderByStartTimeUtcDesc(
+        @Param("provider") String provider,
+        @Param("sportKey") String sportKey,
+        @Param("from") OffsetDateTime from,
+        @Param("to") OffsetDateTime to
+    );
+
+    @Query("""
+        SELECT e FROM Event e
+        JOIN FETCH e.sport s
+        LEFT JOIN FETCH e.competition c
+        WHERE e.externalProvider = :provider
+          AND c.name = :competitionName
+          AND e.startTimeUtc BETWEEN :from AND :to
+        ORDER BY e.startTimeUtc DESC
+        """)
+    List<Event> findByExternalProviderAndCompetitionNameAndStartTimeUtcBetweenOrderByStartTimeUtcDesc(
+        @Param("provider") String provider,
+        @Param("competitionName") String competitionName,
+        @Param("from") OffsetDateTime from,
+        @Param("to") OffsetDateTime to
+    );
+
     List<Event> findByExternalProviderAndExternalIdStartingWithAndSeasonIdOrderByStartTimeUtcAsc(
         String externalProvider,
         String externalIdPrefix,

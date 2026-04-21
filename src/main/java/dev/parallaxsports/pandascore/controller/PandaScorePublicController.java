@@ -62,12 +62,15 @@ public class PandaScorePublicController {
         try {
             if (leagueName != null && !leagueName.isBlank()) {
                 log.info("Public: Getting matches for league={} videogame={}", leagueName, videogame);
+                if (startDate != null && endDate != null) {
+                    return matchService.getMatchesByLeagueBetweenDates(leagueName, startDate, endDate);
+                }
                 return matchService.getMatchesByLeague(leagueName);
             }
 
             if (startDate != null && endDate != null) {
                 log.info("Public: Getting matches for videogame={} between {} and {}", videogame, startDate, endDate);
-                return matchService.getMatchesBetweenDates(startDate, endDate);
+                return matchService.getMatchesByVideogameBetweenDates(videogame, startDate, endDate);
             }
 
             log.info("Public: Getting matches for videogame={}", videogame);

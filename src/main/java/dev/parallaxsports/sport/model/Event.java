@@ -57,6 +57,9 @@ public class Event {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "stage")
+    private String stage;
+
     @Column(nullable = false)
     private String status;
 

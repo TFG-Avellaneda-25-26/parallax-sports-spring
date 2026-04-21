@@ -34,7 +34,7 @@ app:
     openf1-base-url: ${OPENF1_BASE_URL:https://api.openf1.org/v1}
     balldontlie-base-url: ${BALLDONTLIE_BASE_URL:https://api.balldontlie.io}
     balldontlie-api-key: ${BALLDONTLIE_API_KEY:}
-    pandascore-api-key: ${PANDASCORE_API_KEY}
+    pandascore-api-key: ${PANDASCORE_API_KEY:}
     # PandaScore specific configuration
     pandascore-base-url: ${PANDASCORE_BASE_URL:https://api.pandascore.co}
     pandascore-default-per-page: ${PANDASCORE_DEFAULT_PER_PAGE:20}

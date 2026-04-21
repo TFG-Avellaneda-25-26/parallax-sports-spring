@@ -2,6 +2,7 @@ package dev.parallaxsports.external.pandascore.service;
 
 import dev.parallaxsports.external.pandascore.client.PandaScoreClient;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchDto;
+import dev.parallaxsports.external.pandascore.service.PandaScoreSyncWriteService.SyncCounters;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,7 @@ public class PandaScoreSyncService {
                 break;
             }
 
-            PandaScoreSyncWriteService.SyncCounters counters = syncWriteService.syncMatches(matches, videogame);
+            SyncCounters counters = syncWriteService.syncMatches(matches, videogame);
             totalMatches += matches.size();
             totalUpserted += counters.matchesUpserted();
 
