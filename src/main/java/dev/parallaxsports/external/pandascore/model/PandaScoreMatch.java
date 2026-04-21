@@ -1,4 +1,4 @@
-package dev.parallaxsports.pandascore.model;
+package dev.parallaxsports.external.pandascore.model;
 
 import java.time.OffsetDateTime;
 import lombok.AllArgsConstructor;
@@ -42,4 +42,5 @@ public class PandaScoreMatch {
 
     private OffsetDateTime updatedAt;
 }
+
 

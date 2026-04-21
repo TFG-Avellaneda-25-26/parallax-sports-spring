@@ -1,6 +1,6 @@
-package dev.parallaxsports.pandascore.service;
+package dev.parallaxsports.external.pandascore.service;
 
-import dev.parallaxsports.pandascore.dto.PandaScoreMatchResponse;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchResponse;
 import dev.parallaxsports.sport.model.Event;
 import dev.parallaxsports.sport.repository.EventRepository;
 import java.time.OffsetDateTime;
@@ -98,4 +98,5 @@ public class PandaScoreMatchService {
         );
     }
 }
+
 

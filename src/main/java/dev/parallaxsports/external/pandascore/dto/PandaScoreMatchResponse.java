@@ -1,4 +1,4 @@
-package dev.parallaxsports.pandascore.dto;
+package dev.parallaxsports.external.pandascore.dto;
 
 import java.time.OffsetDateTime;
 
@@ -13,4 +13,5 @@ public record PandaScoreMatchResponse(
     String videogame
 ) {
 }
+
 

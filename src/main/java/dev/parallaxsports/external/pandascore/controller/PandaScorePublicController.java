@@ -1,7 +1,7 @@
-package dev.parallaxsports.pandascore.controller;
+package dev.parallaxsports.external.pandascore.controller;
 
-import dev.parallaxsports.pandascore.dto.PandaScoreMatchResponse;
-import dev.parallaxsports.pandascore.service.PandaScoreMatchService;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchResponse;
+import dev.parallaxsports.external.pandascore.service.PandaScoreMatchService;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -84,4 +84,5 @@ public class PandaScorePublicController {
         }
     }
 }
+
 

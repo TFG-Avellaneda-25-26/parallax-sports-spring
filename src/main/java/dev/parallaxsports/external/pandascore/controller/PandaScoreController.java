@@ -1,10 +1,10 @@
-package dev.parallaxsports.pandascore.controller;
+package dev.parallaxsports.external.pandascore.controller;
 
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.external.pandascore.service.PandaScoreSyncService;
-import dev.parallaxsports.pandascore.dto.PandaScoreMatchResponse;
-import dev.parallaxsports.pandascore.dto.PandaScoreSyncResponse;
-import dev.parallaxsports.pandascore.service.PandaScoreMatchService;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchResponse;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreSyncResponse;
+import dev.parallaxsports.external.pandascore.service.PandaScoreMatchService;
 import dev.parallaxsports.core.exception.BadRequestException;
 import java.time.OffsetDateTime;
 import java.util.Collections;
@@ -153,3 +153,4 @@ public class PandaScoreController {
         }
     }
 }
+

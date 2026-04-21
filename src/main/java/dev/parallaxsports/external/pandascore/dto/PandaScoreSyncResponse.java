@@ -1,4 +1,4 @@
-package dev.parallaxsports.pandascore.dto;
+package dev.parallaxsports.external.pandascore.dto;
 
 public record PandaScoreSyncResponse(
     String videogame,
@@ -6,4 +6,5 @@ public record PandaScoreSyncResponse(
     int matchesUpserted
 ) {
 }
+
 

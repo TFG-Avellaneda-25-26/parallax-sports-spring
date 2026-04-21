@@ -1,4 +1,4 @@
-package dev.parallaxsports.pandascore.repository;
+package dev.parallaxsports.external.pandascore.repository;
 
 /**
  * Legacy repository placeholder kept only for backwards compatibility.
@@ -7,5 +7,6 @@ package dev.parallaxsports.pandascore.repository;
  */
 public interface PandaScoreMatchRepository {
 }
+
 
 
