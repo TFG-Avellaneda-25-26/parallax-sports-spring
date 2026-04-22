@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <title th:text="${event.name}">Match Alert</title>
+  <th:block th:replace="~{alert/_styles :: styles}"></th:block>
+</head>
+<body>
+  <div class="card">
+    <div class="bg fallback"></div>
+    <div class="vignette"></div>
+    <div th:if="${competitionName}" class="competition-badge" th:text="${competitionName}">League</div>
+    <div class="content">
+      <div class="versus">
+        <div class="team">
+          <img th:if="${homeLogo}" class="team-logo" th:src="${homeLogo}" alt=""/>
+          <div class="team-name" th:text="${home != null} ? ${home.name} : ''">Home</div>
+        </div>
+        <div class="vs-label">VS</div>
+        <div class="team">
+          <img th:if="${awayLogo}" class="team-logo" th:src="${awayLogo}" alt=""/>
+          <div class="team-name" th:text="${away != null} ? ${away.name} : ''">Away</div>
+        </div>
+      </div>
+    </div>
+    <div th:if="${isEmail}" class="time-chip">
+      <span th:text="${localizedDate}">Sat 26 Jul</span>
+      &middot;
+      <span th:text="${localizedTime}">21:00</span>
+      <span class="tz" th:text="${zoneLabel}">Europe/Madrid</span>
+    </div>
+  </div>
+</body>
+</html>

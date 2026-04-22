@@ -66,6 +66,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/email").permitAll()
                 .requestMatchers("/api/formula1/**", "/api/basketball/**").permitAll()
                 .requestMatchers("/api/internal/alerts/**").permitAll()
+                .requestMatchers("/api/internal/discord/**").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()

@@ -1,0 +1,20 @@
+<style th:fragment="styles">
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #fff; overflow: hidden; }
+  .card { position: relative; width: 1200px; height: 630px; overflow: hidden; }
+  .bg { position: absolute; inset: 0; background-size: cover; background-position: center; filter: brightness(0.45) saturate(1.1); }
+  .bg.fallback { background: linear-gradient(135deg, #1a1d29 0%, #2a3144 100%); }
+  .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%); }
+  .content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; text-align: center; }
+  .title { font-size: 84px; font-weight: 800; letter-spacing: -1px; line-height: 1; text-shadow: 0 4px 24px rgba(0,0,0,0.6); }
+  .subtitle { font-size: 36px; font-weight: 500; margin-top: 24px; opacity: 0.9; letter-spacing: 2px; text-transform: uppercase; }
+  .versus { display: flex; align-items: center; justify-content: center; gap: 80px; }
+  .team { display: flex; flex-direction: column; align-items: center; gap: 24px; flex: 0 0 320px; }
+  .team-logo { width: 240px; height: 240px; object-fit: contain; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5)); }
+  .team-name { font-size: 36px; font-weight: 700; }
+  .vs-label { font-size: 96px; font-weight: 900; opacity: 0.6; }
+  .competition-badge { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; opacity: 0.85; z-index: 3; }
+  .time-chip { position: absolute; bottom: 32px; right: 32px; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); padding: 14px 22px; border-radius: 14px; font-size: 22px; font-weight: 600; z-index: 4; border: 1px solid rgba(255,255,255,0.15); }
+  .time-chip .tz { font-size: 14px; opacity: 0.7; margin-left: 8px; }
+</style>

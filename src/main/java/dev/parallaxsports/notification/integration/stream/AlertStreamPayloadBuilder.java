@@ -1,54 +1,52 @@
 package dev.parallaxsports.notification.integration.stream;
 
+import dev.parallaxsports.notification.discord.service.DiscordRouting;
 import dev.parallaxsports.sport.model.Event;
 import dev.parallaxsports.notification.model.UserEventAlert;
+import dev.parallaxsports.user.model.User;
+import dev.parallaxsports.user.model.UserSettings;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
  * Builds outbound Redis stream payloads for alert dispatch.
- *
- * Payload composition is intentionally split into stable dispatch identity fields
- * and optional event-enrichment fields.
  */
 @Component
 public class AlertStreamPayloadBuilder {
 
     private static final String PAYLOAD_SCHEMA_VERSION = "v1";
 
-        /**
-         * Builds the full payload map consumed by the notification microservice.
-         *
-         * @param alert claimed alert lifecycle row
-         * @param event optional event entity for enrichment fields
-         * @return string payload map ready for Redis stream publish
-         */
-    public Map<String, String> build(UserEventAlert alert, Event event) {
+    public Map<String, String> build(UserEventAlert alert, Event event, User user, String renderHash) {
+        return build(alert, event, user, renderHash, null);
+    }
+
+    public Map<String, String> build(
+        UserEventAlert alert,
+        Event event,
+        User user,
+        String renderHash,
+        DiscordRouting discordRouting
+    ) {
         Map<String, String> payload = new HashMap<>();
         appendBasePayload(payload, alert);
         appendEventPayload(payload, event);
+        appendUserPayload(payload, user);
+        AlertStreamPayloadField.RENDER_HASH.put(payload, renderHash);
+        appendDiscordRouting(payload, discordRouting);
         return payload;
     }
 
-        /*============================================================
-            PAYLOAD SEGMENTS
-            Required identity/routing fields and optional event enrichment fields
-        ============================================================*/
+    private void appendDiscordRouting(Map<String, String> payload, DiscordRouting routing) {
+        if (routing == null || !routing.isRoutable()) {
+            return;
+        }
+        AlertStreamPayloadField.DISCORD_DELIVERY_MODE.put(payload, routing.mode().name());
+        AlertStreamPayloadField.DISCORD_USER_ID.put(payload, routing.discordUserId());
+        AlertStreamPayloadField.DISCORD_CHANNEL_ID.put(payload, routing.discordChannelId());
+        AlertStreamPayloadField.DISCORD_GUILD_ID.put(payload, routing.discordGuildId());
+    }
 
-        /**
-         * Appends base alert fields that are required for dispatch semantics.
-         *
-         * This section contains the invariant contract: routing, retry, idempotency,
-         * and artifact-gating values that the notification microservice needs
-         * even when event enrichment is absent.
-
-         * Artifact means generated media metadata attached to an alert
-         * (for example media id/url) before dispatch.
-         *
-         * @param payload target payload map
-         * @param alert claimed alert lifecycle row
-         */
     private void appendBasePayload(Map<String, String> payload, UserEventAlert alert) {
         AlertStreamPayloadField.SCHEMA_VERSION.put(payload, PAYLOAD_SCHEMA_VERSION);
         AlertStreamPayloadField.ALERT_ID.put(payload, alert.getId());
@@ -63,20 +61,10 @@ public class AlertStreamPayloadBuilder {
         AlertStreamPayloadField.ARTIFACT_ID.put(payload, alert.getArtifactId());
     }
 
-    /**
-        * Appends optional event context fields used for richer notification-side rendering.
-     *
-     * Unlike {@link #appendBasePayload(Map, UserEventAlert)}, this section is best-effort
-     * enrichment and may be partially or fully omitted without breaking core delivery flow.
-     *
-     * @param payload target payload map
-    * @param event optional event entity to enrich notification microservice context
-     */
     private void appendEventPayload(Map<String, String> payload, Event event) {
         if (event == null) {
             return;
         }
-
         AlertStreamPayloadField.EVENT_NAME.put(payload, event.getName());
         AlertStreamPayloadField.EVENT_TYPE.put(payload, event.getEventType());
         AlertStreamPayloadField.EVENT_STATUS.put(payload, event.getStatus());
@@ -90,6 +78,16 @@ public class AlertStreamPayloadBuilder {
         if (event.getVenue() != null) {
             AlertStreamPayloadField.VENUE_NAME.put(payload, event.getVenue().getName());
             AlertStreamPayloadField.VENUE_TIMEZONE.put(payload, event.getVenue().getTimezone());
+        }
+    }
+
+    private void appendUserPayload(Map<String, String> payload, User user) {
+        if (user == null) return;
+        AlertStreamPayloadField.USER_EMAIL.put(payload, user.getEmail());
+        UserSettings settings = user.getSettings();
+        if (settings != null) {
+            AlertStreamPayloadField.USER_TIMEZONE.put(payload, settings.getTimezone());
+            AlertStreamPayloadField.USER_LOCALE.put(payload, settings.getLocale());
         }
     }
 }
