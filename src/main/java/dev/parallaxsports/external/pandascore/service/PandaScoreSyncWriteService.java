@@ -14,6 +14,7 @@ import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.sport.repository.SportRepository;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -101,24 +102,53 @@ public class PandaScoreSyncWriteService {
 
     private Competition ensureCompetition(Sport sport, PandaScoreMatchDto dto, String videogame) {
         String competitionName = resolveCompetitionName(dto, videogame);
+        String region = resolveLeagueRegion(dto);
+        String country = resolveLeagueCountry(dto);
         Competition competition = competitionRepository.findBySportIdAndName(sport.getId(), competitionName).orElse(null);
         if (competition != null) {
             boolean changed = false;
             changed |= setIfChanged(competition.getKind(), "league", competition::setKind);
-            changed |= setIfChanged(competition.getRegion(), null, competition::setRegion);
-            changed |= setIfChanged(competition.getCountry(), null, competition::setCountry);
+            changed |= setIfPresent(competition.getRegion(), region, competition::setRegion);
+            changed |= setIfPresent(competition.getCountry(), country, competition::setCountry);
             if (!changed) {
                 return competition;
             }
         } else {
-            competition = Competition.builder()
+            Competition.CompetitionBuilder builder = Competition.builder()
                 .sport(sport)
                 .name(competitionName)
-                .kind("league")
-                .build();
+                .kind("league");
+            if (region != null) {
+                builder.region(region);
+            }
+            if (country != null) {
+                builder.country(country);
+            }
+            competition = builder.build();
         }
 
         return competitionRepository.save(competition);
+    }
+
+    private boolean setIfPresent(String current, String next, Consumer<String> setter) {
+        if (next == null || next.isBlank()) {
+            return false;
+        }
+        return setIfChanged(current, next, setter);
+    }
+
+    private String resolveLeagueRegion(PandaScoreMatchDto dto) {
+        if (dto.league() == null || dto.league().region() == null || dto.league().region().isBlank()) {
+            return null;
+        }
+        return dto.league().region();
+    }
+
+    private String resolveLeagueCountry(PandaScoreMatchDto dto) {
+        if (dto.league() == null || dto.league().country() == null || dto.league().country().isBlank()) {
+            return null;
+        }
+        return dto.league().country();
     }
 
     private String resolveName(PandaScoreMatchDto dto, Competition competition) {

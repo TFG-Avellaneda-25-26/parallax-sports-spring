@@ -9,6 +9,10 @@ public record PandaScoreLeagueDto(
     String name,
     String slug,
 
+    String region,
+
+    String country,
+
     @JsonProperty("image_url")
     String imageUrl
 ) {
