@@ -30,9 +30,10 @@ public class EmailVerificationClient {
 				.body(request)
 				.retrieve()
 				.toBodilessEntity();
-			log.info("Verification email request sent to={}", request.to());
+			log.info("Verification email request sent to={}", request.email());
 		} catch (Exception ex) {
-			log.error("Failed to send verification email to={}: {}", request.to(), ex.getMessage());
+			log.error("Failed to send verification email to={}: {}",
+					request.email(), ex.getMessage());
 			throw new UpstreamServiceException("Failed to send verification email", ex);
 		}
 	}

@@ -68,7 +68,6 @@ public class JwtTokenProvider {
     }
 
     public boolean isTokenValid(Claims claims, UserDetails userDetails, String expectedType) {
-        // Parse once, then validate identity + type + expiry.
         String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
         Date expiration = claims.getExpiration();
         boolean valid = claims.getSubject().equals(userDetails.getUsername())
@@ -103,8 +102,6 @@ public class JwtTokenProvider {
         Date issuedAt = new Date();
         Date expiresAt = new Date(issuedAt.getTime() + ttlSeconds * 1000);
 
-        // Subject=email aligns with login identifier and UserDetailsService lookup.
-        // jti (JWT ID) is a unique identifier per token, used for revocation tracking.
         String token = Jwts.builder()
             .id(UUID.randomUUID().toString())
             .subject(user.getEmail())
