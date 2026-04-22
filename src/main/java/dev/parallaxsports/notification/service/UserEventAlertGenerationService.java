@@ -9,8 +9,10 @@ import dev.parallaxsports.follow.repository.UserSportFollowRepository;
 import dev.parallaxsports.follow.repository.UserSportNotificationChannelRepository;
 import dev.parallaxsports.follow.repository.UserSportSettingsRepository;
 import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.notification.event.EventsIngestedEvent;
 import dev.parallaxsports.notification.model.UserEventAlert;
 import dev.parallaxsports.notification.repository.UserEventAlertRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.user.repository.UserRepository;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -22,17 +24,12 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
-/**
- * Generates or updates per-user alert rows for upcoming events.
- *
- * Generation combines:
- * - user sport settings,
- * - explicit follow targets,
- * - enabled notification channels,
- * and then computes one idempotent alert record per effective user/channel/lead-time tuple.
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -46,9 +43,23 @@ public class UserEventAlertGenerationService {
     private final UserSportFollowRepository userSportFollowRepository;
     private final UserSportNotificationChannelRepository userSportNotificationChannelRepository;
     private final EventEntryRepository eventEntryRepository;
+    private final EventRepository eventRepository;
     private final UserEventAlertRepository userEventAlertRepository;
     private final UserRepository userRepository;
     private final AlertProperties alertProperties;
+
+    // CAREFUL DON'T CHANGE PROPAGATION, REQUIRED BREAKS IT!! 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onEventsIngested(EventsIngestedEvent event) {
+        if (event.eventIds() == null || event.eventIds().isEmpty()) {
+            return;
+        }
+        List<Event> loaded = eventRepository.findAllById(event.eventIds());
+        if (!loaded.isEmpty()) {
+            generateForEvents(loaded);
+        }
+    }
 
     /**
      * Creates/updates alerts for incoming event candidates.
@@ -223,8 +234,8 @@ public class UserEventAlertGenerationService {
      * @param sendAtUtc computed schedule timestamp
      */
     private void upsertAlert(Long userId, Long eventId, String channel, int leadTimeMinutes, OffsetDateTime sendAtUtc) {
-        boolean artifactRequired = "discord".equalsIgnoreCase(channel);
-        String computedStatus = artifactRequired ? WAITING_ARTIFACT : SCHEDULED;
+        boolean artifactRequired = "discord".equalsIgnoreCase(channel) || "email".equalsIgnoreCase(channel);
+        String computedStatus = SCHEDULED;
         String idempotencyKey = userId + ":" + eventId + ":" + channel + ":" + leadTimeMinutes;
 
         userEventAlertRepository
@@ -236,11 +247,7 @@ public class UserEventAlertGenerationService {
                 existing.setSendAtUtc(sendAtUtc);
                 existing.setIdempotencyKey(idempotencyKey);
                 existing.setArtifactRequired(artifactRequired);
-                if (artifactRequired && existing.getArtifactId() == null) {
-                    existing.setStatus(WAITING_ARTIFACT);
-                } else {
-                    existing.setStatus(computedStatus);
-                }
+                existing.setStatus(computedStatus);
                 userEventAlertRepository.save(existing);
             }, () -> {
                 UserEventAlert alert = UserEventAlert.builder()

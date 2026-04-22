@@ -10,12 +10,15 @@ import dev.parallaxsports.external.basketball.dto.BalldontlieEnvelopeDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieGameDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieMetaDto;
 import dev.parallaxsports.external.basketball.dto.BasketballSyncResponse;
+import dev.parallaxsports.notification.event.EventsIngestedEvent;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientResponseException;
@@ -31,6 +34,7 @@ public class BasketballSyncService {
     private final BalldontlieBasketballClient balldontlieBasketballClient;
     private final BasketballSyncWriteService basketballSyncWriteService;
     private final BasketballReadService basketballReadService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public BasketballSyncResponse syncSchedulerWindow(BasketballLeague league, LocalDate executionDate) {
@@ -63,6 +67,7 @@ public class BasketballSyncService {
         Long cursor = null;
         LocalDate maxProcessedDate = fromDate;
         Set<LocalDate> distinctDates = new HashSet<>();
+        List<Long> ingestedEventIds = new ArrayList<>();
 
         while (pagesUsed < maxPages) {
             BalldontlieEnvelopeDto<BalldontlieGameDto> envelope;
@@ -85,7 +90,13 @@ public class BasketballSyncService {
             gamesFetched += games.size();
 
             for (BalldontlieGameDto game : games) {
-                gamesUpserted += basketballSyncWriteService.upsertGame(league, game);
+                BasketballSyncWriteService.UpsertGameResult result = basketballSyncWriteService.upsertGame(league, game);
+                if (result.changed()) {
+                    gamesUpserted++;
+                }
+                if (result.eventId() != null) {
+                    ingestedEventIds.add(result.eventId());
+                }
                 LocalDate gameDate = parseGameDate(game);
                 if (gameDate != null) {
                     distinctDates.add(gameDate);
@@ -103,6 +114,10 @@ public class BasketballSyncService {
         }
 
         boolean incomplete = (pagesUsed >= maxPages && cursor != null) || stoppedByRateLimit;
+
+        if (!ingestedEventIds.isEmpty()) {
+            eventPublisher.publishEvent(new EventsIngestedEvent(List.copyOf(ingestedEventIds)));
+        }
 
         log.info(
             "Basketball sync finished league={} fromDate={} toDate={} pagesUsed={}/{} datesSynced={} gamesFetched={} gamesUpserted={} incomplete={} rateLimited={}",
