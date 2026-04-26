@@ -3,6 +3,8 @@ package dev.parallaxsports.external.pandascore.service;
 import static dev.parallaxsports.external.sync.SyncWriteHelper.nullSafe;
 import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
 
+import dev.parallaxsports.external.pandascore.client.PandaScoreClient;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreOpponentDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreTeamDto;
@@ -13,7 +15,9 @@ import dev.parallaxsports.sport.repository.CompetitionRepository;
 import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.sport.repository.SportRepository;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +31,7 @@ public class PandaScoreSyncWriteService {
 
     private static final String EXTERNAL_PROVIDER = "pandascore";
 
+    private final PandaScoreClient pandaScoreClient;
     private final SportRepository sportRepository;
     private final CompetitionRepository competitionRepository;
     private final EventRepository eventRepository;
@@ -34,13 +39,14 @@ public class PandaScoreSyncWriteService {
     @Transactional
     public SyncCounters syncMatches(List<PandaScoreMatchDto> matches, String videogame) {
         int upserted = 0;
+        Map<Long, PandaScoreLeagueDto> leagueCache = new HashMap<>();
 
         for (PandaScoreMatchDto match : matches) {
             if (match == null || match.id() == null) {
                 continue;
             }
 
-            if (upsertMatch(match, videogame)) {
+            if (upsertMatch(match, videogame, leagueCache)) {
                 upserted++;
             }
         }
@@ -49,9 +55,9 @@ public class PandaScoreSyncWriteService {
         return new SyncCounters(upserted);
     }
 
-    private boolean upsertMatch(PandaScoreMatchDto dto, String videogame) {
+    private boolean upsertMatch(PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache) {
         Sport sport = ensureSport(videogame);
-        Competition competition = ensureCompetition(sport, dto, videogame);
+        Competition competition = ensureCompetition(sport, dto, videogame, leagueCache);
         String externalId = externalId(dto);
         Event event = eventRepository.findByExternalProviderAndExternalId(EXTERNAL_PROVIDER, externalId).orElse(null);
         boolean created = false;
@@ -100,10 +106,11 @@ public class PandaScoreSyncWriteService {
         );
     }
 
-    private Competition ensureCompetition(Sport sport, PandaScoreMatchDto dto, String videogame) {
-        String competitionName = resolveCompetitionName(dto, videogame);
-        String region = resolveLeagueRegion(dto);
-        String country = resolveLeagueCountry(dto);
+    private Competition ensureCompetition(Sport sport, PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache) {
+        PandaScoreLeagueDto league = resolveLeague(dto, leagueCache);
+        String competitionName = resolveCompetitionName(league, videogame);
+        String region = resolveLeagueRegion(league);
+        String country = resolveLeagueCountry(league);
         Competition competition = competitionRepository.findBySportIdAndName(sport.getId(), competitionName).orElse(null);
         if (competition != null) {
             boolean changed = false;
@@ -137,18 +144,40 @@ public class PandaScoreSyncWriteService {
         return setIfChanged(current, next, setter);
     }
 
-    private String resolveLeagueRegion(PandaScoreMatchDto dto) {
-        if (dto.league() == null || dto.league().region() == null || dto.league().region().isBlank()) {
-            return null;
+    private PandaScoreLeagueDto resolveLeague(PandaScoreMatchDto dto, Map<Long, PandaScoreLeagueDto> leagueCache) {
+        PandaScoreLeagueDto league = dto.league();
+        if (!needsLeagueEnrichment(league)) {
+            return league;
         }
-        return dto.league().region();
+
+        if (dto.leagueId() == null) {
+            return league;
+        }
+
+        PandaScoreLeagueDto enriched = leagueCache.computeIfAbsent(dto.leagueId(), pandaScoreClient::fetchLeague);
+        return enriched != null ? enriched : league;
     }
 
-    private String resolveLeagueCountry(PandaScoreMatchDto dto) {
-        if (dto.league() == null || dto.league().country() == null || dto.league().country().isBlank()) {
+    private boolean needsLeagueEnrichment(PandaScoreLeagueDto league) {
+        return league == null
+            || league.name() == null || league.name().isBlank()
+            || league.slug() == null || league.slug().isBlank()
+            || league.region() == null || league.region().isBlank()
+            || league.country() == null || league.country().isBlank();
+    }
+
+    private String resolveLeagueRegion(PandaScoreLeagueDto league) {
+        if (league == null || league.region() == null || league.region().isBlank()) {
             return null;
         }
-        return dto.league().country();
+        return league.region();
+    }
+
+    private String resolveLeagueCountry(PandaScoreLeagueDto league) {
+        if (league == null || league.country() == null || league.country().isBlank()) {
+            return null;
+        }
+        return league.country();
     }
 
     private String resolveName(PandaScoreMatchDto dto, Competition competition) {
@@ -164,13 +193,13 @@ public class PandaScoreSyncWriteService {
         return (competition == null ? "PandaScore match" : competition.getName() + " match") + " " + dto.id();
     }
 
-    private String resolveCompetitionName(PandaScoreMatchDto dto, String videogame) {
-        if (dto.league() != null) {
-            if (dto.league().name() != null && !dto.league().name().isBlank()) {
-                return dto.league().name();
+    private String resolveCompetitionName(PandaScoreLeagueDto league, String videogame) {
+        if (league != null) {
+            if (league.name() != null && !league.name().isBlank()) {
+                return league.name();
             }
-            if (dto.league().slug() != null && !dto.league().slug().isBlank()) {
-                return dto.league().slug();
+            if (league.slug() != null && !league.slug().isBlank()) {
+                return league.slug();
             }
         }
         return resolveSportName(nullSafe(videogame, "pandascore"));

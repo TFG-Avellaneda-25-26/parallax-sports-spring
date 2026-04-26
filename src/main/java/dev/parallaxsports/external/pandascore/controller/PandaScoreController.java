@@ -31,7 +31,8 @@ public class PandaScoreController {
         "league-of-legends",
         "valorant",
         "dota2",
-        "counter-strike"
+        "counter-strike",
+        "overwatch"
     );
 
     // Ahora exponemos un endpoint POST por cada videojuego para que no haga falta especificarlo en la llamada
@@ -65,6 +66,27 @@ public class PandaScoreController {
         @RequestParam(required = false) Integer perPage
     ) {
         return syncFor("counter-strike", pages, perPage);
+    }
+
+    @PostMapping("/sync/overwatch")
+    public PandaScoreSyncResponse syncOverwatch(
+        @RequestParam(defaultValue = "2") int pages,
+        @RequestParam(required = false) Integer perPage
+    ) {
+        return syncFor("overwatch", pages, perPage);
+    }
+
+    @GetMapping("/leagues")
+    public List<dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto> getLeagues(
+        @RequestParam String videogame,
+        @RequestParam(required = false) String tier,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "50") int perPage
+    ) {
+        if (!ALLOWED_VIDEOGAMES.contains(videogame)) {
+            throw new BadRequestException("videogame not supported");
+        }
+        return syncService.fetchLeaguesRaw(videogame, tier, page, perPage);
     }
 
     // Lógica común de sincronización extraída a método privado

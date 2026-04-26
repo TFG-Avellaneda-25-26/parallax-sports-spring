@@ -58,6 +58,15 @@ public class PandaScorePublicController {
         return getMatchesForVideogame("counter-strike", leagueName, startDate, endDate);
     }
 
+    @GetMapping("/overwatch/matches")
+    public List<PandaScoreMatchResponse> getOverwatchMatches(
+        @RequestParam(required = false) String leagueName,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endDate
+    ) {
+        return getMatchesForVideogame("overwatch", leagueName, startDate, endDate);
+    }
+
     private List<PandaScoreMatchResponse> getMatchesForVideogame(String videogame, String leagueName, OffsetDateTime startDate, OffsetDateTime endDate) {
         try {
             if (leagueName != null && !leagueName.isBlank()) {

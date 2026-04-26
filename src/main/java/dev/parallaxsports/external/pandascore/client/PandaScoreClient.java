@@ -1,6 +1,7 @@
 package dev.parallaxsports.external.pandascore.client;
 
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchDto;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -22,12 +23,13 @@ public class PandaScoreClient {
     private final RestClient.Builder restClientBuilder;
     private final ExternalApiProperties externalApiProperties;
 
-    // Mapeo de videojuegos a sus prefijos de endpoint en PandaScore
-    private static final Map<String, String> VIDEOGAME_ENDPOINTS = Map.of(
-        "league-of-legends", "/lol/matches",
-        "valorant", "/valorant/matches",
-        "dota2", "/dota2/matches",
-        "counter-strike", "/csgo/matches"
+    // Mapeo de videojuegos a sus prefijos en PandaScore
+    private static final Map<String, String> VIDEOGAME_PREFIXES = Map.of(
+        "league-of-legends", "/lol",
+        "valorant", "/valorant",
+        "dota2", "/dota2",
+        "counter-strike", "/csgo",
+        "overwatch", "/ow"
     );
 
     public List<PandaScoreMatchDto> fetchMatches(String videogame, int page, int perPage) {
@@ -51,8 +53,8 @@ public class PandaScoreClient {
         log.info("✓ Base URL: {}", baseUrl);
 
         // Validar que el videojuego esté soportado
-        if (!VIDEOGAME_ENDPOINTS.containsKey(videogame)) {
-            log.error("Unsupported videogame: {}. Supported: {}", videogame, VIDEOGAME_ENDPOINTS.keySet());
+        if (!VIDEOGAME_PREFIXES.containsKey(videogame)) {
+            log.error("Unsupported videogame: {}. Supported: {}", videogame, VIDEOGAME_PREFIXES.keySet());
             return Collections.emptyList();
         }
 
@@ -64,15 +66,12 @@ public class PandaScoreClient {
         }
 
         // Build URI without date filters (PandaScore API doesn't use filter[begin_at] and filter[end_at])
-        String endpoint = VIDEOGAME_ENDPOINTS.get(videogame);
-        String encodedApiKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
-        String uri = endpoint 
+        String prefix = VIDEOGAME_PREFIXES.get(videogame);
+        String uri = prefix + "/matches" 
             + "?page=" + page 
-            + "&per_page=" + perPage 
-            + "&token=" + encodedApiKey;
+            + "&per_page=" + perPage;
         
-        String fullUrl = baseUrl + uri;
-        log.info("Calling: {}{}?page={}&per_page={}&token=****", baseUrl, endpoint, page, perPage);
+        log.info("Calling: {}", baseUrl + uri);
 
         int maxRetries = externalApiProperties.getPandascoreMaxRetries();
         long baseBackoff = externalApiProperties.getPandascoreBaseBackoffMillis();
@@ -88,6 +87,7 @@ public class PandaScoreClient {
                     .build()
                     .get()
                     .uri(uri)
+                    .header("Authorization", "Bearer " + apiKey)
                     .retrieve()
                     .body(PandaScoreMatchDto[].class);
 
@@ -110,11 +110,7 @@ public class PandaScoreClient {
                 if (is429 && attempt <= maxRetries) {
                     long waitMillis = baseBackoff * (1L << (attempt - 1));
                     log.warn("Rate limit 429 detected, backing off {}ms", waitMillis);
-                    try {
-                        Thread.sleep(waitMillis);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        log.error("Interrupted during backoff", ie);
+                    if (!sleepQuietly(waitMillis)) {
                         return Collections.emptyList();
                     }
                     continue;
@@ -123,10 +119,7 @@ public class PandaScoreClient {
                 if (attempt < maxRetries) {
                     long waitMillis = Math.max(200L, baseBackoff);
                     log.warn("Transient error, retrying after {}ms (attempt {}/{})", waitMillis, attempt, maxRetries);
-                    try {
-                        Thread.sleep(waitMillis);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
+                    if (!sleepQuietly(waitMillis)) {
                         return Collections.emptyList();
                     }
                     continue;
@@ -139,6 +132,154 @@ public class PandaScoreClient {
                 log.error("Unexpected error on attempt {}: {}", attempt, e.getMessage(), e);
                 return Collections.emptyList();
             }
+        }
+    }
+
+    public List<PandaScoreLeagueDto> fetchLeagues(String videogame, String tier, int page, int perPage) {
+        String apiKey = externalApiProperties.getPandascoreApiKey();
+
+        if (apiKey == null || apiKey.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String baseUrl = externalApiProperties.getPandascoreBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            baseUrl = "https://api.pandascore.co";
+        }
+
+        if (!VIDEOGAME_PREFIXES.containsKey(videogame)) {
+            return Collections.emptyList();
+        }
+
+        String prefix = VIDEOGAME_PREFIXES.get(videogame);
+        StringBuilder uriBuilder = new StringBuilder();
+        uriBuilder.append(prefix).append("/leagues?page=").append(page).append("&per_page=").append(perPage);
+        
+        if (tier != null && !tier.isBlank()) {
+            uriBuilder.append("&filter[tier]=").append(tier);
+        }
+
+        String uri = uriBuilder.toString();
+        int maxRetries = externalApiProperties.getPandascoreMaxRetries();
+        long baseBackoff = externalApiProperties.getPandascoreBaseBackoffMillis();
+
+        int attempt = 0;
+        while (true) {
+            attempt++;
+            try {
+                PandaScoreLeagueDto[] body = restClientBuilder
+                    .baseUrl(baseUrl)
+                    .build()
+                    .get()
+                    .uri(uri)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .retrieve()
+                    .body(PandaScoreLeagueDto[].class);
+
+                if (body == null) {
+                    return Collections.emptyList();
+                }
+
+                return Arrays.asList(body);
+            } catch (RestClientException ex) {
+                String msg = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+                boolean is429 = msg.contains("429") || msg.contains("too many requests") || msg.contains("rate limit");
+
+                if (is429 && attempt <= maxRetries) {
+                    long waitMillis = baseBackoff * (1L << (attempt - 1));
+                    if (!sleepQuietly(waitMillis)) {
+                        return Collections.emptyList();
+                    }
+                    continue;
+                }
+
+                if (attempt < maxRetries) {
+                    long waitMillis = Math.max(200L, baseBackoff);
+                    if (!sleepQuietly(waitMillis)) {
+                        return Collections.emptyList();
+                    }
+                    continue;
+                }
+
+                return Collections.emptyList();
+            } catch (Exception e) {
+                return Collections.emptyList();
+            }
+        }
+    }
+
+    public PandaScoreLeagueDto fetchLeague(Long leagueId) {
+        String apiKey = externalApiProperties.getPandascoreApiKey();
+        if (leagueId == null) {
+            return null;
+        }
+        if (apiKey == null || apiKey.isEmpty()) {
+            log.debug("PandaScore API key missing; skipping league lookup for leagueId={}", leagueId);
+            return null;
+        }
+
+        String baseUrl = externalApiProperties.getPandascoreBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            baseUrl = "https://api.pandascore.co";
+        }
+
+        String uri = "/leagues/" + leagueId;
+
+        int maxRetries = externalApiProperties.getPandascoreMaxRetries();
+        long baseBackoff = externalApiProperties.getPandascoreBaseBackoffMillis();
+
+        int attempt = 0;
+        while (true) {
+            attempt++;
+            try {
+                log.debug("Fetching PandaScore league details for leagueId={} attempt {}/{}", leagueId, attempt, maxRetries);
+
+                return restClientBuilder
+                    .baseUrl(baseUrl)
+                    .build()
+                    .get()
+                    .uri(uri)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .retrieve()
+                    .body(PandaScoreLeagueDto.class);
+            } catch (RestClientException ex) {
+                log.debug("PandaScore league lookup failed on attempt {} for leagueId={}: {}", attempt, leagueId, ex.getMessage());
+
+                String msg = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+                boolean is429 = msg.contains("429") || msg.contains("too many requests") || msg.contains("rate limit");
+
+                if (is429 && attempt <= maxRetries) {
+                    long waitMillis = baseBackoff * (1L << (attempt - 1));
+                    if (!sleepQuietly(waitMillis)) {
+                        return null;
+                    }
+                    continue;
+                }
+
+                if (attempt < maxRetries) {
+                    long waitMillis = Math.max(200L, baseBackoff);
+                    if (!sleepQuietly(waitMillis)) {
+                        return null;
+                    }
+                    continue;
+                }
+
+                return null;
+            } catch (Exception e) {
+                log.debug("Unexpected error fetching PandaScore leagueId={}: {}", leagueId, e.getMessage());
+                return null;
+            }
+        }
+    }
+
+    private boolean sleepQuietly(long waitMillis) {
+        try {
+            Thread.sleep(waitMillis);
+            return true;
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted during backoff", ie);
+            return false;
         }
     }
 }
