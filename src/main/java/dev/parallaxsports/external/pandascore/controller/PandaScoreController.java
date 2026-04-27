@@ -76,18 +76,6 @@ public class PandaScoreController {
         return syncFor("overwatch", pages, perPage);
     }
 
-    @GetMapping("/leagues")
-    public List<dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto> getLeagues(
-        @RequestParam String videogame,
-        @RequestParam(required = false) String tier,
-        @RequestParam(defaultValue = "1") int page,
-        @RequestParam(defaultValue = "50") int perPage
-    ) {
-        if (!ALLOWED_VIDEOGAMES.contains(videogame)) {
-            throw new BadRequestException("videogame not supported");
-        }
-        return syncService.fetchLeaguesRaw(videogame, tier, page, perPage);
-    }
 
     // Lógica común de sincronización extraída a método privado
     private PandaScoreSyncResponse syncFor(String videogame, int pages, Integer perPage) {

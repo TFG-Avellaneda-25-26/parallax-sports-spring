@@ -46,7 +46,18 @@ public class PandaScoreSyncWriteService {
                 continue;
             }
 
-            if (upsertMatch(match, videogame, leagueCache)) {
+            PandaScoreLeagueDto enrichedLeague = resolveLeague(match, leagueCache);
+            
+            // Solo procesamos los partidos que pertenezcan a un torneo de tier S o A
+            if (match.tournament() == null || match.tournament().tier() == null) {
+                continue;
+            }
+            String tier = match.tournament().tier().toLowerCase();
+            if (!tier.equals("s") && !tier.equals("a")) {
+                continue;
+            }
+
+            if (upsertMatch(match, videogame, leagueCache, enrichedLeague)) {
                 upserted++;
             }
         }
@@ -55,9 +66,9 @@ public class PandaScoreSyncWriteService {
         return new SyncCounters(upserted);
     }
 
-    private boolean upsertMatch(PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache) {
+    private boolean upsertMatch(PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache, PandaScoreLeagueDto enrichedLeague) {
         Sport sport = ensureSport(videogame);
-        Competition competition = ensureCompetition(sport, dto, videogame, leagueCache);
+        Competition competition = ensureCompetition(sport, dto, videogame, leagueCache, enrichedLeague);
         String externalId = externalId(dto);
         Event event = eventRepository.findByExternalProviderAndExternalId(EXTERNAL_PROVIDER, externalId).orElse(null);
         boolean created = false;
@@ -106,8 +117,7 @@ public class PandaScoreSyncWriteService {
         );
     }
 
-    private Competition ensureCompetition(Sport sport, PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache) {
-        PandaScoreLeagueDto league = resolveLeague(dto, leagueCache);
+    private Competition ensureCompetition(Sport sport, PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache, PandaScoreLeagueDto league) {
         String competitionName = resolveCompetitionName(league, videogame);
         String region = resolveLeagueRegion(league);
         String country = resolveLeagueCountry(league);

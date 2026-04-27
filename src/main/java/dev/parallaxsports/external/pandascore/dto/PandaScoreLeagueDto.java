@@ -17,9 +17,6 @@ public record PandaScoreLeagueDto(
     String country,
 
     @JsonProperty("image_url")
-    String imageUrl,
-
-    String tier
+    String imageUrl
 ) {
 }
-

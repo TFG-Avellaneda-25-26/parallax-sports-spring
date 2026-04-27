@@ -26,7 +26,10 @@ public record PandaScoreMatchDto(
     PandaScoreOpponentDto[] opponents,
 
     @JsonProperty("results")
-    PandaScoreResultDto[] results
+    PandaScoreResultDto[] results,
+
+    @JsonProperty("tournament")
+    PandaScoreTournamentDto tournament
 ) {
 }
 

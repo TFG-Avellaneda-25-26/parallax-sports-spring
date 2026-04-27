@@ -62,11 +62,4 @@ public class PandaScoreSyncService {
     public List<PandaScoreMatchDto> fetchMatchesRaw(String videogame, int page, int perPage) {
         return pandaScoreClient.fetchMatches(videogame, page, perPage);
     }
-
-    /**
-     * Fetch raw leagues from PandaScore (no persistence).
-     */
-    public List<dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto> fetchLeaguesRaw(String videogame, String tier, int page, int perPage) {
-        return pandaScoreClient.fetchLeagues(videogame, tier, page, perPage);
-    }
 }
