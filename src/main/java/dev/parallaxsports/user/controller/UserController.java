@@ -21,7 +21,12 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<CurrentUserResponse> me(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok()
-            .cacheControl(CacheControl.noStore())
-            .body(userService.findCurrentUser(userDetails.getUsername()));
+                .cacheControl(CacheControl.noStore())
+                .body(userService.findCurrentUser(userDetails.getUsername()));
+    }
+
+    @GetMapping("email")
+    public Boolean emailExists(String email) {
+        return userService.existsByEmail(email);
     }
 }
