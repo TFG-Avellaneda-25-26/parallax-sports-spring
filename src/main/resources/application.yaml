@@ -82,3 +82,9 @@ management:
     web:
       exposure:
         include: health,info,prometheus,mappings,conditions
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
