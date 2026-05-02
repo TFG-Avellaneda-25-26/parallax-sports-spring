@@ -112,7 +112,8 @@ public class PandaScoreController {
             return new PandaScoreSyncResponse(
                 response.videogame(),
                 response.matchesFetched(),
-                response.matchesUpserted()
+                response.matchesUpserted(),
+                response.tiersFound()
             );
         } catch (BadRequestException e) {
             log.warn("Bad request when syncing PandaScore: {}", e.getMessage());
@@ -121,7 +122,7 @@ public class PandaScoreController {
             log.error("Unexpected error syncing PandaScore for videogame={}", videogame, e);
             // En lugar de lanzar la excepción, retornar una respuesta con 0 matches
             // para no generar un 500
-            return new PandaScoreSyncResponse(videogame, 0, 0);
+            return new PandaScoreSyncResponse(videogame, 0, 0, new java.util.HashMap<>());
         }
     }
 

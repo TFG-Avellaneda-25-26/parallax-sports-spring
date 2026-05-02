@@ -21,6 +21,7 @@ public class PandaScoreSyncService {
     public PandaScoreSyncResponse syncVideogame(String videogame, int pages, int perPage) {
         int totalMatches = 0;
         int totalUpserted = 0;
+        java.util.Map<String, Integer> totalTiersFound = new java.util.HashMap<>();
 
         log.info("Starting PandaScore sync for videogame={} pages={} perPage={}", videogame, pages, perPage);
 
@@ -35,23 +36,27 @@ public class PandaScoreSyncService {
             SyncCounters counters = syncWriteService.syncMatches(matches, videogame);
             totalMatches += matches.size();
             totalUpserted += counters.matchesUpserted();
+            if (counters.tiersFound() != null) {
+                counters.tiersFound().forEach((k, v) -> totalTiersFound.merge(k, v, Integer::sum));
+            }
 
             log.info("PandaScore sync page={} matches={} upserted={}", page, matches.size(), counters.matchesUpserted());
         }
 
         log.info("PandaScore sync finished videogame={} totalMatches={} totalUpserted={}", videogame, totalMatches, totalUpserted);
 
-        return new PandaScoreSyncResponse(videogame, totalMatches, totalUpserted);
+        return new PandaScoreSyncResponse(videogame, totalMatches, totalUpserted, totalTiersFound);
     }
 
     public record PandaScoreSyncResponse(
         String videogame,
         int matchesFetched,
-        int matchesUpserted
+        int matchesUpserted,
+        java.util.Map<String, Integer> tiersFound
     ) {
         // Compat constructor usado por tests antiguos: (videogame, matchesFetched)
         public PandaScoreSyncResponse(String videogame, int matchesFetched) {
-            this(videogame, matchesFetched, 0);
+            this(videogame, matchesFetched, 0, new java.util.HashMap<>());
         }
     }
 

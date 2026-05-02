@@ -3,6 +3,7 @@ package dev.parallaxsports.external.pandascore.client;
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchDto;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreTournamentDto;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -195,6 +196,70 @@ public class PandaScoreClient {
                 return null;
             } catch (Exception e) {
                 log.debug("Unexpected error fetching PandaScore leagueId={}: {}", leagueId, e.getMessage());
+                return null;
+            }
+        }
+    }
+
+    public PandaScoreTournamentDto fetchTournament(Long tournamentId) {
+        String apiKey = externalApiProperties.getPandascoreApiKey();
+        if (tournamentId == null) {
+            return null;
+        }
+        if (apiKey == null || apiKey.isEmpty()) {
+            log.debug("PandaScore API key missing; skipping tournament lookup for tournamentId={}", tournamentId);
+            return null;
+        }
+
+        String baseUrl = externalApiProperties.getPandascoreBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            baseUrl = "https://api.pandascore.co";
+        }
+
+        String uri = "/tournaments/" + tournamentId;
+
+        int maxRetries = externalApiProperties.getPandascoreMaxRetries();
+        long baseBackoff = externalApiProperties.getPandascoreBaseBackoffMillis();
+
+        int attempt = 0;
+        while (true) {
+            attempt++;
+            try {
+                log.debug("Fetching PandaScore tournament details for tournamentId={} attempt {}/{}", tournamentId, attempt, maxRetries);
+
+                return restClientBuilder
+                    .baseUrl(baseUrl)
+                    .build()
+                    .get()
+                    .uri(uri)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .retrieve()
+                    .body(PandaScoreTournamentDto.class);
+            } catch (RestClientException ex) {
+                log.debug("PandaScore tournament lookup failed on attempt {} for tournamentId={}: {}", attempt, tournamentId, ex.getMessage());
+
+                String msg = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+                boolean is429 = msg.contains("429") || msg.contains("too many requests") || msg.contains("rate limit");
+
+                if (is429 && attempt <= maxRetries) {
+                    long waitMillis = baseBackoff * (1L << (attempt - 1));
+                    if (!sleepQuietly(waitMillis)) {
+                        return null;
+                    }
+                    continue;
+                }
+
+                if (attempt < maxRetries) {
+                    long waitMillis = Math.max(200L, baseBackoff);
+                    if (!sleepQuietly(waitMillis)) {
+                        return null;
+                    }
+                    continue;
+                }
+
+                return null;
+            } catch (Exception e) {
+                log.debug("Unexpected error fetching PandaScore tournamentId={}: {}", tournamentId, e.getMessage());
                 return null;
             }
         }

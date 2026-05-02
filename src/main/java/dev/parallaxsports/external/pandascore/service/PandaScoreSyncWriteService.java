@@ -6,6 +6,7 @@ import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
 import dev.parallaxsports.external.pandascore.client.PandaScoreClient;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchDto;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreTournamentDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreOpponentDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreTeamDto;
 import dev.parallaxsports.sport.model.Competition;
@@ -40,6 +41,8 @@ public class PandaScoreSyncWriteService {
     public SyncCounters syncMatches(List<PandaScoreMatchDto> matches, String videogame) {
         int upserted = 0;
         Map<Long, PandaScoreLeagueDto> leagueCache = new HashMap<>();
+        Map<Long, PandaScoreTournamentDto> tournamentCache = new HashMap<>();
+        Map<String, Integer> tiersFound = new HashMap<>();
 
         for (PandaScoreMatchDto match : matches) {
             if (match == null || match.id() == null) {
@@ -49,10 +52,32 @@ public class PandaScoreSyncWriteService {
             PandaScoreLeagueDto enrichedLeague = resolveLeague(match, leagueCache);
             
             // Solo procesamos los partidos que pertenezcan a un torneo de tier S o A
-            if (match.tournament() == null || match.tournament().tier() == null) {
+            PandaScoreTournamentDto tournament = match.tournament();
+            if (tournament == null) {
+                tiersFound.merge("null_tournament", 1, Integer::sum);
                 continue;
             }
-            String tier = match.tournament().tier().toLowerCase();
+
+            // Enriquecer el torneo si le falta el tier
+            if (tournament.tier() == null && tournament.id() != null) {
+                PandaScoreTournamentDto enrichedTournament = tournamentCache.computeIfAbsent(
+                    tournament.id(), 
+                    pandaScoreClient::fetchTournament
+                );
+                if (enrichedTournament != null) {
+                    tournament = enrichedTournament;
+                }
+            }
+
+            if (tournament.tier() == null) {
+                tiersFound.merge("null_tier", 1, Integer::sum);
+                continue;
+            }
+
+            String tier = tournament.tier().toLowerCase();
+            tiersFound.merge(tier, 1, Integer::sum);
+            log.info("Match {} (videogame: {}) has tournament tier: {}", match.id(), videogame, tier);
+            
             if (!tier.equals("s") && !tier.equals("a")) {
                 continue;
             }
@@ -63,7 +88,7 @@ public class PandaScoreSyncWriteService {
         }
 
         log.info("PandaScore sync completed: matches={}", upserted);
-        return new SyncCounters(upserted);
+        return new SyncCounters(upserted, tiersFound);
     }
 
     private boolean upsertMatch(PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache, PandaScoreLeagueDto enrichedLeague) {
@@ -299,7 +324,7 @@ public class PandaScoreSyncWriteService {
         return "scheduled";
     }
 
-    public record SyncCounters(int matchesUpserted) {
+    public record SyncCounters(int matchesUpserted, java.util.Map<String, Integer> tiersFound) {
     }
 }
 

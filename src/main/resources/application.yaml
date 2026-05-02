@@ -39,8 +39,8 @@ app:
     pandascore-base-url: ${PANDASCORE_BASE_URL:https://api.pandascore.co}
     pandascore-default-per-page: ${PANDASCORE_DEFAULT_PER_PAGE:20}
     pandascore-default-pages: ${PANDASCORE_DEFAULT_PAGES:2}
-    pandascore-max-pages: ${PANDASCORE_MAX_PAGES:5}
-    pandascore-max-per-page: ${PANDASCORE_MAX_PER_PAGE:50}
+    pandascore-max-pages: ${PANDASCORE_MAX_PAGES:50}
+    pandascore-max-per-page: ${PANDASCORE_MAX_PER_PAGE:100}
     pandascore-max-retries: ${PANDASCORE_MAX_RETRIES:3}
     pandascore-base-backoff-ms: ${PANDASCORE_BASE_BACKOFF_MS:500}
   external-sync:
