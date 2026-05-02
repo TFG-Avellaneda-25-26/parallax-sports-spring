@@ -2,6 +2,8 @@ package dev.parallaxsports.core.exception;
 
 import java.net.URI;
 import org.springframework.core.MethodParameter;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -17,6 +19,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  * that never pass through {@link GlobalExceptionHandler}
  */
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
     public class ProblemDetailResponseAdvice implements ResponseBodyAdvice<Object> {
 
     private static final String BASE = "/problems";

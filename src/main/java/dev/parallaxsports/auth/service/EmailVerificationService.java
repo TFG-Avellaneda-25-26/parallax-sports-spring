@@ -22,6 +22,8 @@ public class EmailVerificationService {
 	private static final int MAX_ATTEMPTS = 5;
 	private static final String CODE_KEY_PREFIX = "email-verify:";
 	private static final String ATTEMPTS_KEY_PREFIX = "email-verify-attempts:";
+	private static final String COOLDOWN_KEY_PREFIX = "email-verify-cooldown:";
+	private static final Duration COOLDOWN_TTL = Duration.ofSeconds(60);
 
 	private final UserRepository userRepository;
 	private final EmailVerificationClient emailClient;
@@ -78,6 +80,11 @@ public class EmailVerificationService {
 	public void resendVerification(User user) {
 		if (user.isEmailVerified()) {
 			throw new BadRequestException("Email is already verified");
+		}
+		Boolean set = redisTemplate.opsForValue()
+			.setIfAbsent(COOLDOWN_KEY_PREFIX + user.getEmail(), "1", COOLDOWN_TTL);
+		if (Boolean.FALSE.equals(set)) {
+			throw new BadRequestException("Please wait before requesting another verification code");
 		}
 		createAndSendVerification(user);
 	}

@@ -5,7 +5,6 @@ import dev.parallaxsports.user.repository.UserRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -24,10 +23,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		
 		User user = userRepository.findByEmail(username)
 			.orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
-
-		if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-			throw new BadCredentialsException("Invalid credentials");
-		}
 
 		// ROLE_ prefix is required by hasRole("...") checks in SecurityConfig.
 		log.debug("Loaded security principal for '{}'", username);
