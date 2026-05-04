@@ -111,5 +111,15 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         user.setPasswordHash(passwordEncoder.encode(password));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void updateDisplayName(String email, String displayName) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.setDisplayName(displayName);
+        userRepository.save(user);
     }
 }

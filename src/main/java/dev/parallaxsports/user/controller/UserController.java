@@ -63,4 +63,13 @@ public class UserController {
         userService.updatePassword(userDetails.getUsername(), passwordRequest.password());
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/display-name")
+    public ResponseEntity<Void> updateDisplayName(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody String displayName
+    ) {
+        userService.updateDisplayName(userDetails.getUsername(), displayName);
+        return ResponseEntity.noContent().build();
+    }
 }
