@@ -1,5 +1,8 @@
 package dev.parallaxsports.user.service;
 
+import dev.parallaxsports.auth.model.TokenType;
+import dev.parallaxsports.auth.service.JwtTokenProvider;
+import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.user.dto.CurrentUserResponse;
 import dev.parallaxsports.user.dto.CurrentUserResponse.FollowDto;
@@ -10,6 +13,9 @@ import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.model.UserSettings;
 import dev.parallaxsports.user.repository.UserRepository;
 import java.util.List;
+
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(readOnly = true)
     public CurrentUserResponse findCurrentUser(String email) {
@@ -65,11 +73,23 @@ public class UserService {
     }
 
     @Transactional
-    public void updateEmail(String email, String newEmail) {
+    public User updateEmail(String email, String newEmail) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setEmail(newEmail);
         user.setEmailVerified(false);
-        userRepository.save(user);
+        return userRepository.save(user);
+    }
+
+    public void refreshToken(User user, HttpServletResponse response) {
+        String accessToken = jwtTokenProvider.issueAccessToken(user);
+        String refreshToken = jwtTokenProvider.issueRefreshToken(user);
+        Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
+
+        refreshTokenService.revokeAllByUser(user.getId());
+        refreshTokenService.store(user, refreshToken, refreshClaims);
+
+        refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
+        refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
     }
 }

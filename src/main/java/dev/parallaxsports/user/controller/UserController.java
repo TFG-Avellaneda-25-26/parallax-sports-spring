@@ -1,8 +1,11 @@
 package dev.parallaxsports.user.controller;
 
+import dev.parallaxsports.auth.service.JwtTokenProvider;
 import dev.parallaxsports.user.dto.CurrentUserResponse;
 import dev.parallaxsports.user.dto.UpdateEmailRequest;
+import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +35,13 @@ public class UserController {
     @PutMapping("/email")
     public ResponseEntity<Void> updateEmail(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody UpdateEmailRequest emailRequest
+            @RequestBody UpdateEmailRequest emailRequest,
+            HttpServletResponse response
             ) {
-        userService.updateEmail(emailRequest.email(), emailRequest.newEmail());
+
+        System.out.println("Email:" + emailRequest.email() + " newEmail:" + emailRequest.newEmail());
+        User user = userService.updateEmail(emailRequest.email(), emailRequest.newEmail());
+        userService.refreshToken(user, response);
         return ResponseEntity.noContent().build();
     }
 }
