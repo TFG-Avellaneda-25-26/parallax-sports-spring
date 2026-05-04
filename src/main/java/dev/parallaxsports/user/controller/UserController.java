@@ -1,15 +1,14 @@
 package dev.parallaxsports.user.controller;
 
 import dev.parallaxsports.user.dto.CurrentUserResponse;
+import dev.parallaxsports.user.dto.UpdateEmailRequest;
 import dev.parallaxsports.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -28,5 +27,14 @@ public class UserController {
     @GetMapping("email")
     public Boolean emailExists(String email) {
         return userService.existsByEmail(email);
+    }
+
+    @PutMapping("/email")
+    public ResponseEntity<Void> updateEmail(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody UpdateEmailRequest emailRequest
+            ) {
+        userService.updateEmail(emailRequest.email(), emailRequest.newEmail());
+        return ResponseEntity.noContent().build();
     }
 }

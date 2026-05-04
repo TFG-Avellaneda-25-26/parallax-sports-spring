@@ -63,4 +63,13 @@ public class UserService {
     public Boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
+
+    @Transactional
+    public void updateEmail(String email, String newEmail) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        user.setEmail(newEmail);
+        user.setEmailVerified(false);
+        userRepository.save(user);
+    }
 }
