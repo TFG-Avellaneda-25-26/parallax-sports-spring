@@ -2,6 +2,7 @@ package dev.parallaxsports.user.controller;
 
 import dev.parallaxsports.auth.service.JwtTokenProvider;
 import dev.parallaxsports.user.dto.CurrentUserResponse;
+import dev.parallaxsports.user.dto.PasswordRequest;
 import dev.parallaxsports.user.dto.UpdateEmailRequest;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.service.UserService;
@@ -42,6 +43,24 @@ public class UserController {
         System.out.println("Email:" + emailRequest.email() + " newEmail:" + emailRequest.newEmail());
         User user = userService.updateEmail(emailRequest.email(), emailRequest.newEmail());
         userService.refreshToken(user, response);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/validate-password")
+    public ResponseEntity<Boolean> validatePassword(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody PasswordRequest passwordRequest
+    ) {
+        boolean valid = userService.validatePassword(userDetails.getUsername(), passwordRequest.password());
+        return ResponseEntity.ok(valid);
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<Void> updatePassword(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody PasswordRequest passwordRequest
+    ) {
+        userService.updatePassword(userDetails.getUsername(), passwordRequest.password());
         return ResponseEntity.noContent().build();
     }
 }

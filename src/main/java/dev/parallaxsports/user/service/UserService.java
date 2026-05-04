@@ -17,16 +17,21 @@ import java.util.List;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public CurrentUserResponse findCurrentUser(String email) {
@@ -91,5 +96,20 @@ public class UserService {
 
         refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
         refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean validatePassword(String email, String password) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return passwordEncoder.matches(password, user.getPasswordHash());
+    }
+
+    @Transactional
+    public void updatePassword(String email, String password) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.setPasswordHash(passwordEncoder.encode(password));
     }
 }
