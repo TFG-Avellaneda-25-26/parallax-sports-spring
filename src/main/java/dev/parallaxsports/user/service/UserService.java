@@ -32,11 +32,14 @@ public class UserService {
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
 
+    private User getuser(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
     @Transactional(readOnly = true)
     public CurrentUserResponse findCurrentUser(String email) {
-        User user = userRepository.findByEmailWithFullProfile(email)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return toCurrentUserResponse(user);
+        return toCurrentUserResponse(getuser(email));
     }
 
     private CurrentUserResponse toCurrentUserResponse(User user) {
@@ -77,15 +80,14 @@ public class UserService {
     }
 
     @Transactional
-    public User updateEmail(String email, String newEmail) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    public void updateEmail(String email, String newEmail, HttpServletResponse response) {
+        User user = getuser(email);
+
         user.setEmail(newEmail);
         user.setEmailVerified(false);
-        return userRepository.save(user);
-    }
 
-    public void refreshToken(User user, HttpServletResponse response) {
+        userRepository.save(user);
+
         String accessToken = jwtTokenProvider.issueAccessToken(user);
         String refreshToken = jwtTokenProvider.issueRefreshToken(user);
         Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
@@ -99,15 +101,14 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public boolean validatePassword(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = getuser(email);
+
         return passwordEncoder.matches(password, user.getPasswordHash());
     }
 
     @Transactional
     public void updatePassword(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = getuser(email);
 
         user.setPasswordHash(passwordEncoder.encode(password));
         userRepository.save(user);
@@ -115,8 +116,7 @@ public class UserService {
 
     @Transactional
     public void updateDisplayName(String email, String displayName) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = getuser(email);
 
         user.setDisplayName(displayName);
         userRepository.save(user);
@@ -124,9 +124,7 @@ public class UserService {
 
     @Transactional
     public void disconnectIdentity(String email, Long identityId) {
-        System.out.println("disconnect" + identityId.toString());
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = getuser(email);
 
         user.getIdentities().removeIf(i -> i.getId().equals(identityId));
         userRepository.save(user);
@@ -134,8 +132,7 @@ public class UserService {
 
     @Transactional
     public void deleteAccount(String email, HttpServletResponse response) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = getuser(email);
 
         refreshTokenService.revokeAllByUser(user.getId());
         userRepository.delete(user);

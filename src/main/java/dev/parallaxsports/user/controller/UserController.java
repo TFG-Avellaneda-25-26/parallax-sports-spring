@@ -1,10 +1,6 @@
 package dev.parallaxsports.user.controller;
 
-import dev.parallaxsports.auth.service.JwtTokenProvider;
 import dev.parallaxsports.user.dto.CurrentUserResponse;
-import dev.parallaxsports.user.dto.PasswordRequest;
-import dev.parallaxsports.user.dto.UpdateEmailRequest;
-import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -45,31 +41,28 @@ public class UserController {
     @PutMapping("/email")
     public ResponseEntity<Void> updateEmail(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody UpdateEmailRequest emailRequest,
+            @RequestBody String newEmail,
             HttpServletResponse response
             ) {
-
-        System.out.println("Email:" + emailRequest.email() + " newEmail:" + emailRequest.newEmail());
-        User user = userService.updateEmail(emailRequest.email(), emailRequest.newEmail());
-        userService.refreshToken(user, response);
+        userService.updateEmail(userDetails.getUsername(), newEmail, response);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/validate-password")
     public ResponseEntity<Boolean> validatePassword(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody PasswordRequest passwordRequest
+            @RequestBody String password
     ) {
-        boolean valid = userService.validatePassword(userDetails.getUsername(), passwordRequest.password());
+        boolean valid = userService.validatePassword(userDetails.getUsername(), password);
         return ResponseEntity.ok(valid);
     }
 
     @PutMapping("/password")
     public ResponseEntity<Void> updatePassword(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody PasswordRequest passwordRequest
+            @RequestBody String password
     ) {
-        userService.updatePassword(userDetails.getUsername(), passwordRequest.password());
+        userService.updatePassword(userDetails.getUsername(), password);
         return ResponseEntity.noContent().build();
     }
 
