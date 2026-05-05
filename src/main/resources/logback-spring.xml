@@ -1,37 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="parallax-sports-api"/>
-    <springProperty scope="context" name="lokiBaseUrl" source="observability.loki-url" defaultValue="http://localhost:3100"/>
+    <springProperty scope="context" name="appName"
+                    source="spring.application.name"
+                    defaultValue="parallax-sports-api"/>
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] %logger{36} [%property{appName}] - %msg%n</pattern>
-        </encoder>
-    </appender>
+    <!-- Human-readable for local dev -->
+    <springProfile name="default | dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] %logger{36} [%property{appName}] - %msg%n</pattern>
+            </encoder>
+        </appender>
+    </springProfile>
 
-    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
-        <http>
-            <url>${lokiBaseUrl}/loki/api/v1/push</url>
-        </http>
-        <batch>
-            <maxItems>1000</maxItems>
-            <timeoutMs>2000</timeoutMs>
-        </batch>
-        <labels>
-            app=${appName}
-            host=${HOSTNAME}
-            level=%level
-        </labels>
-        <structuredMetadata>traceId=%X{traceId}</structuredMetadata>
-        <message class="ch.qos.logback.classic.PatternLayout">
-            <pattern>{"level":"%level","logger":"%logger{36}","thread":"%thread","message":"%message"}</pattern>
-        </message>
-        <readMarkers>true</readMarkers>
-    </appender>
+    <!-- JSON for Docker (Alloy parses this) -->
+    <springProfile name="docker | prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdcKeyName>traceId</includeMdcKeyName>
+                <includeMdcKeyName>spanId</includeMdcKeyName>
+                <customFields>{"app":"${appName}"}</customFields>
+            </encoder>
+        </appender>
+    </springProfile>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="LOKI"/>
     </root>
 
     <logger name="dev.parallaxsports.auth" level="DEBUG"/>
