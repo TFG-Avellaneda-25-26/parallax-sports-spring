@@ -1,4 +1,8 @@
 spring:
+  config:
+    import:
+      - optional:classpath:api-secrets.yml
+      - optional:classpath:./api-secrets.local.yml
   data:
     redis:
       host: ${REDIS_HOST:localhost}
