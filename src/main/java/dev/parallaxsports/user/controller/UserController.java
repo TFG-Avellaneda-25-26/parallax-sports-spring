@@ -72,4 +72,13 @@ public class UserController {
         userService.updateDisplayName(userDetails.getUsername(), displayName);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/identities/{identityId}")
+    public ResponseEntity<Void> disconnectIdentity(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long identityId
+    ) {
+        userService.disconnectIdentity(userDetails.getUsername(), identityId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -122,4 +122,14 @@ public class UserService {
         user.setDisplayName(displayName);
         userRepository.save(user);
     }
+
+    @Transactional
+    public void disconnectIdentity(String email, Long identityId) {
+        System.out.println("disconnect" + identityId.toString());
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.getIdentities().removeIf(i -> i.getId().equals(identityId));
+        userRepository.save(user);
+    }
 }
