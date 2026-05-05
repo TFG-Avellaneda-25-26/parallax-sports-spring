@@ -66,9 +66,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/email").permitAll()
                 .requestMatchers("/api/formula1/**", "/api/basketball/**").permitAll()
                 // Permitir acceso público (sin ADMIN) a endpoints públicos por videojuego
-                .requestMatchers("/api/league-of-legends/**", "/api/valorant/**", "/api/dota2/**", "/api/counter-strike/**").permitAll()
+                .requestMatchers("/api/league-of-legends/**", "/api/valorant/**", "/api/dota2/**", "/api/counter-strike/**", "/api/overwatch/**").permitAll()
                 .requestMatchers("/api/internal/alerts/**").permitAll()
-                    .requestMatchers("/api/admin/pandascore/**").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
