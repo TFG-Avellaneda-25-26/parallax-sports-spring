@@ -28,6 +28,15 @@ public class UserController {
                 .body(userService.findCurrentUser(userDetails.getUsername()));
     }
 
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteAccount(
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletResponse response
+    ) {
+        userService.deleteAccount(userDetails.getUsername(), response);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("email")
     public Boolean emailExists(String email) {
         return userService.existsByEmail(email);

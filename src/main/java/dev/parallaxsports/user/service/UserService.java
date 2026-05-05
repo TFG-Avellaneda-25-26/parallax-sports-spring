@@ -18,7 +18,6 @@ import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -131,5 +130,15 @@ public class UserService {
 
         user.getIdentities().removeIf(i -> i.getId().equals(identityId));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteAccount(String email, HttpServletResponse response) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        refreshTokenService.revokeAllByUser(user.getId());
+        userRepository.delete(user);
+        refreshTokenService.clearAuthCookies(response);
     }
 }
