@@ -1,5 +1,8 @@
 package dev.parallaxsports.user.service;
 
+import dev.parallaxsports.auth.model.TokenType;
+import dev.parallaxsports.auth.service.JwtTokenProvider;
+import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.user.dto.CurrentUserResponse;
 import dev.parallaxsports.user.dto.CurrentUserResponse.FollowDto;
@@ -10,21 +13,33 @@ import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.model.UserSettings;
 import dev.parallaxsports.user.repository.UserRepository;
 import java.util.List;
+
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
+    private final PasswordEncoder passwordEncoder;
+
+    private User getuser(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
 
     @Transactional(readOnly = true)
     public CurrentUserResponse findCurrentUser(String email) {
-        User user = userRepository.findByEmailWithFullProfile(email)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return toCurrentUserResponse(user);
+        return toCurrentUserResponse(getuser(email));
     }
 
     private CurrentUserResponse toCurrentUserResponse(User user) {
@@ -62,5 +77,65 @@ public class UserService {
     }
     public Boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    @Transactional
+    public void updateEmail(String email, String newEmail, HttpServletResponse response) {
+        User user = getuser(email);
+
+        user.setEmail(newEmail);
+        user.setEmailVerified(false);
+
+        userRepository.save(user);
+
+        String accessToken = jwtTokenProvider.issueAccessToken(user);
+        String refreshToken = jwtTokenProvider.issueRefreshToken(user);
+        Claims refreshClaims = jwtTokenProvider.parseClaims(refreshToken);
+
+        refreshTokenService.revokeAllByUser(user.getId());
+        refreshTokenService.store(user, refreshToken, refreshClaims);
+
+        refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
+        refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean validatePassword(String email, String password) {
+        User user = getuser(email);
+
+        return passwordEncoder.matches(password, user.getPasswordHash());
+    }
+
+    @Transactional
+    public void updatePassword(String email, String password) {
+        User user = getuser(email);
+
+        user.setPasswordHash(passwordEncoder.encode(password));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void updateDisplayName(String email, String displayName) {
+        User user = getuser(email);
+
+        user.setDisplayName(displayName);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void disconnectIdentity(String email, Long identityId) {
+        User user = getuser(email);
+
+        user.getIdentities().removeIf(i -> i.getId().equals(identityId));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteAccount(String email, HttpServletResponse response) {
+        User user = getuser(email);
+
+        refreshTokenService.revokeAllByUser(user.getId());
+        userRepository.delete(user);
+        refreshTokenService.clearAuthCookies(response);
     }
 }
