@@ -2,14 +2,13 @@ package dev.parallaxsports.user.controller;
 
 import dev.parallaxsports.user.dto.CurrentUserResponse;
 import dev.parallaxsports.user.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -25,8 +24,63 @@ public class UserController {
                 .body(userService.findCurrentUser(userDetails.getUsername()));
     }
 
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteAccount(
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletResponse response
+    ) {
+        userService.deleteAccount(userDetails.getUsername(), response);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("email")
     public Boolean emailExists(String email) {
         return userService.existsByEmail(email);
+    }
+
+    @PutMapping("/email")
+    public ResponseEntity<Void> updateEmail(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody String newEmail,
+            HttpServletResponse response
+            ) {
+        userService.updateEmail(userDetails.getUsername(), newEmail, response);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/validate-password")
+    public ResponseEntity<Boolean> validatePassword(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody String password
+    ) {
+        boolean valid = userService.validatePassword(userDetails.getUsername(), password);
+        return ResponseEntity.ok(valid);
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<Void> updatePassword(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody String password
+    ) {
+        userService.updatePassword(userDetails.getUsername(), password);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/display-name")
+    public ResponseEntity<Void> updateDisplayName(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody String displayName
+    ) {
+        userService.updateDisplayName(userDetails.getUsername(), displayName);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/identities/{identityId}")
+    public ResponseEntity<Void> disconnectIdentity(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long identityId
+    ) {
+        userService.disconnectIdentity(userDetails.getUsername(), identityId);
+        return ResponseEntity.noContent().build();
     }
 }
