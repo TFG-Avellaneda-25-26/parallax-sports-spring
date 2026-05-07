@@ -44,7 +44,7 @@ spring:
 app:
   frontend-url: http://localhost:4200
   cookie:
-    secure: false
+    secure: false   # override to true in prod via api-secrets.yml
   jwt:
     access-token-expiration-seconds: 900
     refresh-token-expiration-seconds: 604800
@@ -61,7 +61,7 @@ app:
     wnba-enabled: true
   alerts:
     generation-enabled: true
-    dispatch-enabled: false
+    dispatch-enabled: true
     dispatch-cron: 0 * * * * *
     stream-trim-enabled: true
     stream-max-len: 200000

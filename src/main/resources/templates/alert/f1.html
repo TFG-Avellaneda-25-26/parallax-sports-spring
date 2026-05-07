@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <title th:text="${gpName}">F1 Alert</title>
+  <th:block th:replace="~{alert/_styles :: styles}"></th:block>
+</head>
+<body>
+  <div class="card">
+    <div th:if="${backgroundUrl}" class="bg" th:style="'background-image: url(' + ${backgroundUrl} + ')'"></div>
+    <div th:unless="${backgroundUrl}" class="bg fallback"></div>
+    <div class="vignette"></div>
+    <div class="content">
+      <div class="title" th:text="${gpName}">Belgium Grand Prix</div>
+      <div class="subtitle" th:text="${sessionLabel}">Qualifying</div>
+    </div>
+    <div th:if="${isEmail}" class="time-chip">
+      <span th:text="${localizedDate}">Sat 26 Jul</span>
+      &middot;
+      <span th:text="${localizedTime}">15:00</span>
+      <span class="tz" th:text="${zoneLabel}">Europe/Madrid</span>
+    </div>
+  </div>
+</body>
+</html>

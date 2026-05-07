@@ -60,8 +60,6 @@ public class AlertProperties {
         return KTOR_DISPATCH_PATH;
     }
 
-    // ── Externalized accessors ──
-
     public boolean isGenerationEnabled() {
         return generationEnabled;
     }
@@ -126,7 +124,6 @@ public class AlertProperties {
         this.ktorApiKey = ktorApiKey;
     }
 
-    // ── Channel routing ──
 
     public String streamNameForChannel(String channel) {
         return switch (channel.toLowerCase()) {

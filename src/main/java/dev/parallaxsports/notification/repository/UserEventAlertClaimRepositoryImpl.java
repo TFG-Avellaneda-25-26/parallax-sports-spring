@@ -40,7 +40,6 @@ public class UserEventAlertClaimRepositoryImpl implements UserEventAlertClaimRep
                 where channel = :channel
                   and status in ('scheduled', 'failed_retryable')
                   and coalesce(next_retry_at_utc, send_at_utc) <= :now
-                  and (artifact_required = false or artifact_id is not null)
                 order by coalesce(next_retry_at_utc, send_at_utc), id
                 for update skip locked
                 limit :batchSize
