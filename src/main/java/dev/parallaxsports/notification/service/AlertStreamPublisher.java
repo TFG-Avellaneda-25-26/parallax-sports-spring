@@ -2,9 +2,11 @@ package dev.parallaxsports.notification.service;
 
 import dev.parallaxsports.core.config.properties.AlertProperties;
 import dev.parallaxsports.core.exception.ServiceUnavailableException;
+import dev.parallaxsports.notification.discord.service.DiscordRouting;
 import dev.parallaxsports.sport.model.Event;
 import dev.parallaxsports.notification.integration.stream.AlertStreamPayloadBuilder;
 import dev.parallaxsports.notification.model.UserEventAlert;
+import dev.parallaxsports.user.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.RecordId;
@@ -33,8 +35,19 @@ public class AlertStreamPublisher {
      * @param event optional event enrichment entity
      * @return Redis stream message id
      */
-    public String publish(String streamName, UserEventAlert alert, Event event) {
-        var payload = payloadBuilder.build(alert, event);
+    public String publish(String streamName, UserEventAlert alert, Event event, User user, String renderHash) {
+        return publish(streamName, alert, event, user, renderHash, null);
+    }
+
+    public String publish(
+        String streamName,
+        UserEventAlert alert,
+        Event event,
+        User user,
+        String renderHash,
+        DiscordRouting discordRouting
+    ) {
+        var payload = payloadBuilder.build(alert, event, user, renderHash, discordRouting);
 
         try {
             RecordId recordId = stringRedisTemplate.opsForStream().add(MapRecord.create(streamName, payload));

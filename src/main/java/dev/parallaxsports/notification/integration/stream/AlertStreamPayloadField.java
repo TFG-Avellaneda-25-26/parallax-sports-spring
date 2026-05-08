@@ -26,7 +26,15 @@ enum AlertStreamPayloadField {
     EVENT_END_TIME_UTC("eventEndTimeUtc"),
     COMPETITION_NAME("competitionName"),
     VENUE_NAME("venueName"),
-    VENUE_TIMEZONE("venueTimezone");
+    VENUE_TIMEZONE("venueTimezone"),
+    USER_TIMEZONE("userTimezone"),
+    USER_LOCALE("userLocale"),
+    USER_EMAIL("userEmail"),
+    RENDER_HASH("renderHash"),
+    DISCORD_DELIVERY_MODE("discordDeliveryMode"),
+    DISCORD_USER_ID("discordUserId"),
+    DISCORD_CHANNEL_ID("discordChannelId"),
+    DISCORD_GUILD_ID("discordGuildId");
 
     private final String key;
 

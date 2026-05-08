@@ -43,10 +43,14 @@ class BasketballSyncWriteService {
     private final EventEntryRepository eventEntryRepository;
     private final MediaAssetRepository mediaAssetRepository;
 
-    int upsertGame(BasketballLeague league, BalldontlieGameDto game) {
+    public record UpsertGameResult(boolean changed, Long eventId) {
+        public static UpsertGameResult skipped() { return new UpsertGameResult(false, null); }
+    }
+
+    UpsertGameResult upsertGame(BasketballLeague league, BalldontlieGameDto game) {
         String rawDateTime = resolveDateTime(game);
         if (game.id() == null || rawDateTime == null || game.homeTeam() == null || game.visitorTeam() == null) {
-            return 0;
+            return UpsertGameResult.skipped();
         }
 
         String provider = league.getProvider();
@@ -87,7 +91,7 @@ class BasketballSyncWriteService {
         }
         Event savedEvent = (!created && !changed) ? event : eventRepository.save(event);
         upsertEventParticipants(league, savedEvent, sport, game);
-        return (!created && !changed) ? 0 : 1;
+        return new UpsertGameResult(created || changed, savedEvent.getId());
     }
 
     LocalDate latestSyncedDate(BasketballLeague league) {
