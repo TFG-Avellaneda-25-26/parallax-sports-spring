@@ -20,16 +20,19 @@ pipeline {
             }
         }
 
-        stage('Decrypt secrets') {
-            steps {
-                sh '''
-                    git-crypt unlock
-                    test -f src/main/resources/api-secrets.yml \
-                        || (echo "Secrets not decrypted!" && exit 1)
-                    echo "Secrets decrypted"
-                '''
-            }
+stage('Decrypt secrets') {
+    steps {
+        withCredentials([file(credentialsId: '062f57c8-aae6-4a78-90ed-b159c33a51d7', variable: 'GC_KEY')]) {
+            sh '''
+                git-crypt unlock "$GC_KEY"
+                test -f src/main/resources/api-secrets.yml \
+                    || (echo "Secrets not decrypted!" && exit 1)
+                echo "Secrets decrypted"
+            '''
         }
+    }
+}
+
 
         stage('Build jar') {
             steps {
