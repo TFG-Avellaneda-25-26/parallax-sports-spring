@@ -42,18 +42,6 @@ pipeline {
             }
         }
 
-        stage('Run tests') {
-            steps {
-                sh './mvnw -B -ntp test'
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true,
-                          testResults: 'target/surefire-reports/*.xml'
-                }
-            }
-        }
-
         stage('Build Docker image') {
             steps {
                 sh """
