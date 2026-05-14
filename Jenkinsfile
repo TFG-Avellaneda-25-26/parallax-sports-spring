@@ -20,37 +20,36 @@ pipeline {
             }
         }
 
-stage('Decrypt secrets') {
-    steps {
-        withCredentials([file(credentialsId: '062f57c8-aae6-4a78-90ed-b159c33a51d7', variable: 'GC_KEY')]) {
-            sh '''
-                git-crypt unlock "$GC_KEY"
-                test -f src/main/resources/api-secrets.yml \
-                    || (echo "Secrets not decrypted!" && exit 1)
-                echo "Secrets decrypted"
-            '''
+        stage('Decrypt secrets') {
+            steps {
+                withCredentials([file(credentialsId: '062f57c8-aae6-4a78-90ed-b159c33a51d7', variable: 'GC_KEY')]) {
+                    sh '''
+                        git-crypt unlock "$GC_KEY"
+                        test -f src/main/resources/api-secrets.yml \
+                            || (echo "Secrets not decrypted!" && exit 1)
+                        echo "Secrets decrypted"
+                    '''
+                }
+            }
         }
-    }
-}
-
 
         stage('Build jar') {
             steps {
                 sh '''
-                    chmod +x gradlew
-                    ./gradlew clean bootJar -x test --no-daemon
+                    chmod +x mvnw
+                    ./mvnw -B -ntp clean package -DskipTests
                 '''
             }
         }
 
         stage('Run tests') {
             steps {
-                sh './gradlew test --no-daemon'
+                sh './mvnw -B -ntp test'
             }
             post {
                 always {
                     junit allowEmptyResults: true,
-                          testResults: 'build/test-results/test/*.xml'
+                          testResults: 'target/surefire-reports/*.xml'
                 }
             }
         }
