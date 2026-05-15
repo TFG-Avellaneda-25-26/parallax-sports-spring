@@ -1,8 +1,10 @@
 package dev.parallaxsports.notification.service;
 
+import dev.parallaxsports.audit.service.AuditService;
 import dev.parallaxsports.core.exception.BadRequestException;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.core.exception.StateConflictException;
+import dev.parallaxsports.core.metrics.AlertMetrics;
 import dev.parallaxsports.sport.repository.EventRepository;
 import dev.parallaxsports.notification.dto.AlertArtifactCallbackRequest;
 import dev.parallaxsports.notification.dto.AlertWorkerStatusCallbackRequest;
@@ -16,6 +18,8 @@ import dev.parallaxsports.notification.service.callback.AlertCallbackAuthenticat
 import dev.parallaxsports.notification.service.policy.AlertRetryPolicy;
 import dev.parallaxsports.notification.service.policy.AlertStatusTransitionPolicy;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,6 +46,8 @@ public class AlertCallbackService {
     private final AlertArtifactRepository alertArtifactRepository;
     private final AlertDeliveryAttemptRepository alertDeliveryAttemptRepository;
     private final EventRepository eventRepository;
+    private final AuditService auditService;
+    private final AlertMetrics alertMetrics;
 
     /**
         * Applies a status callback emitted by notification microservice processing.
@@ -83,6 +89,9 @@ public class AlertCallbackService {
             alert.setStatus("processing");
             alert.setProcessingStartedAtUtc(OffsetDateTime.now());
             userEventAlertRepository.save(alert);
+            auditService.record("ALERT_PROCESSING", alert.getUserId(), "user_event_alert", alert.getId(),
+                Map.of("channel", String.valueOf(alert.getChannel()), "workerId", String.valueOf(request.workerId())));
+            alertMetrics.statusCallback(String.valueOf(alert.getChannel()), "processing");
             return;
         }
 
@@ -116,6 +125,27 @@ public class AlertCallbackService {
 
         userEventAlertRepository.save(alert);
         saveAttempt(alert, request, targetStatus);
+
+        Map<String, Object> detail = new HashMap<>();
+        detail.put("channel", String.valueOf(alert.getChannel()));
+        detail.put("attempts", alert.getAttempts());
+        if (request.providerMessageId() != null) detail.put("providerMessageId", request.providerMessageId());
+        if (request.workerId() != null) detail.put("workerId", request.workerId());
+        if (request.latencyMs() != null) detail.put("latencyMs", request.latencyMs());
+        if (request.errorCode() != null) detail.put("errorCode", request.errorCode());
+        if (request.errorMessage() != null) detail.put("errorMessage", request.errorMessage());
+
+        String auditAction = switch (alert.getStatus()) {
+            case "sent" -> "ALERT_SENT";
+            case "failed_retryable" -> "ALERT_FAILED_RETRYABLE";
+            case "failed_permanent" -> "ALERT_FAILED_PERMANENT";
+            case "cancelled" -> "ALERT_CANCELLED";
+            default -> null;
+        };
+        if (auditAction != null) {
+            auditService.record(auditAction, alert.getUserId(), "user_event_alert", alert.getId(), detail);
+            alertMetrics.statusCallback(String.valueOf(alert.getChannel()), alert.getStatus());
+        }
     }
 
     /**
@@ -163,6 +193,8 @@ public class AlertCallbackService {
             alert.setStatus("scheduled");
         }
         userEventAlertRepository.save(alert);
+        auditService.record("ALERT_ARTIFACT_READY", alert.getUserId(), "user_event_alert", alert.getId(),
+            Map.of("artifactId", savedArtifact.getId(), "assetUrl", artifact.getAssetUrl()));
     }
 
     /**

@@ -1,6 +1,7 @@
 package dev.parallaxsports.auth.service;
 
 import dev.parallaxsports.auth.repository.RefreshTokenRepository;
+import io.micrometer.core.annotation.Timed;
 import java.time.OffsetDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ public class RefreshTokenCleanupScheduler {
 
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
+    @Timed(value = "scheduled_job_seconds", extraTags = {"job", "refresh-token-cleanup"}, histogram = true, percentiles = {0.5, 0.95, 0.99})
     public void cleanupExpiredAndOldRevoked() {
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime revokedCutoff = now.minusDays(30);

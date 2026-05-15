@@ -1,5 +1,6 @@
 package dev.parallaxsports.notification.discord.service;
 
+import dev.parallaxsports.audit.annotation.Audited;
 import dev.parallaxsports.core.exception.BadRequestException;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.notification.discord.dto.DiscordDeliveryRequest;
@@ -50,6 +51,7 @@ public class DiscordAdminService {
     }
 
     @Transactional
+    @Audited(action = "DISCORD_GUILD_INSTALLED", entityType = "discord_guild")
     public void installGuild(String guildId, DiscordGuildInstallRequest request) {
         DiscordGuildConfig guild = guildConfigRepository.findById(guildId)
             .orElseGet(() -> DiscordGuildConfig.builder().guildId(guildId).build());
@@ -61,11 +63,13 @@ public class DiscordAdminService {
     }
 
     @Transactional
+    @Audited(action = "DISCORD_GUILD_UNINSTALLED", entityType = "discord_guild")
     public void uninstallGuild(String guildId) {
         guildConfigRepository.deleteById(guildId);
     }
 
     @Transactional
+    @Audited(action = "DISCORD_GUILD_CHANNEL_UPSERT", entityType = "discord_guild")
     public void upsertGuildChannel(String guildId, DiscordGuildChannelRequest request) {
         if (request.channelId() == null || request.channelId().isBlank()) {
             throw new BadRequestException("channelId is required");
@@ -95,6 +99,7 @@ public class DiscordAdminService {
     }
 
     @Transactional
+    @Audited(action = "DISCORD_USER_DEFAULT_DELIVERY_UPSERT", entityType = "user_discord_delivery_prefs")
     public void upsertUserDefaultDelivery(Long userId, DiscordDeliveryRequest request) {
         validateDeliveryRequest(request);
         User user = userRepository.findById(userId)
@@ -111,6 +116,7 @@ public class DiscordAdminService {
     }
 
     @Transactional
+    @Audited(action = "DISCORD_SPORT_OVERRIDE_UPSERT", entityType = "user_discord_sport_delivery_overrides")
     public void upsertUserSportDeliveryOverride(Long userId, Long sportId, DiscordDeliveryRequest request) {
         validateDeliveryRequest(request);
         User user = userRepository.findById(userId)
@@ -131,11 +137,13 @@ public class DiscordAdminService {
     }
 
     @Transactional
+    @Audited(action = "DISCORD_SPORT_OVERRIDE_DELETED", entityType = "user_discord_sport_delivery_overrides")
     public void deleteUserSportDeliveryOverride(Long userId, Long sportId) {
         overrideRepository.deleteById(new UserDiscordSportDeliveryOverrideId(userId, sportId));
     }
 
     @Transactional
+    @Audited(action = "DISCORD_SPORT_OVERRIDE_UPSERT_BY_KEY", entityType = "user_discord_sport_delivery_overrides")
     public void upsertUserSportDeliveryOverrideByKey(Long userId, String sportKey, DiscordDeliveryRequest request) {
         Sport sport = sportRepository.findByKey(sportKey)
             .orElseThrow(() -> new ResourceNotFoundException("Sport not found: " + sportKey));
@@ -143,6 +151,7 @@ public class DiscordAdminService {
     }
 
     @Transactional
+    @Audited(action = "DISCORD_SPORT_OVERRIDE_DELETED_BY_KEY", entityType = "user_discord_sport_delivery_overrides")
     public void deleteUserSportDeliveryOverrideByKey(Long userId, String sportKey) {
         Sport sport = sportRepository.findByKey(sportKey)
             .orElseThrow(() -> new ResourceNotFoundException("Sport not found: " + sportKey));

@@ -1,5 +1,6 @@
 package dev.parallaxsports.external.sync.controller;
 
+import dev.parallaxsports.audit.annotation.Audited;
 import dev.parallaxsports.external.sync.ExternalApiDailyScheduler;
 import dev.parallaxsports.external.sync.ExternalSyncExecutionResult;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class ExternalSyncAdminController {
      * @return HTTP 200 with execution summary including discovered, succeeded, and failed jobs
      */
     @PostMapping("/daily/trigger")
+    @Audited(action = "ADMIN_TRIGGER_DAILY_SYNC")
     public ResponseEntity<ExternalSyncExecutionResult> triggerDailySyncNow() {
         return ResponseEntity.ok(externalApiDailyScheduler.runDailySyncNow());
     }

@@ -1,5 +1,6 @@
 package dev.parallaxsports.user.service;
 
+import dev.parallaxsports.audit.annotation.Audited;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.user.dto.UpdateUserSettingsRequest;
 import dev.parallaxsports.user.dto.UserSettingsResponse;
@@ -21,6 +22,7 @@ public class UserSettingsService {
         return toResponse(settings);
     }
 
+    @Audited(action = "USER_SETTINGS_UPDATED", entityType = "user_settings")
     public UserSettingsResponse upsert(Long userId, UpdateUserSettingsRequest request) {
         UserSettings settings = userSettingsRepository.findById(userId).orElseGet(UserSettings::new);
         settings.setUserId(userId);

@@ -1,6 +1,7 @@
 package dev.parallaxsports.external.formula1.client;
 
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
+import dev.parallaxsports.core.metrics.ExternalApiMetrics;
 import dev.parallaxsports.external.formula1.dto.OpenF1MeetingDto;
 import dev.parallaxsports.external.formula1.dto.OpenF1SessionDto;
 import java.util.Arrays;
@@ -20,6 +21,7 @@ public class OpenF1Client {
 
     private final RestClient.Builder restClientBuilder;
     private final ExternalApiProperties externalApiProperties;
+    private final ExternalApiMetrics externalApiMetrics;
 
     private RestClient restClient;
 
@@ -31,42 +33,46 @@ public class OpenF1Client {
     }
 
     public List<OpenF1MeetingDto> fetchMeetings(int year) {
-        OpenF1MeetingDto[] body;
-        try {
-            body = restClient
-                .get()
-                .uri(uriBuilder -> uriBuilder.path("/meetings").queryParam("year", year).build())
-                .retrieve()
-                .body(OpenF1MeetingDto[].class);
-        } catch (HttpClientErrorException.NotFound ex) {
-            log.warn("OpenF1 meetings endpoint returned 404 for year={}", year);
-            return Collections.emptyList();
-        }
+        return externalApiMetrics.time("openf1", "/meetings", () -> {
+            OpenF1MeetingDto[] body;
+            try {
+                body = restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder.path("/meetings").queryParam("year", year).build())
+                    .retrieve()
+                    .body(OpenF1MeetingDto[].class);
+            } catch (HttpClientErrorException.NotFound ex) {
+                log.warn("OpenF1 meetings endpoint returned 404 for year={}", year);
+                return Collections.emptyList();
+            }
 
-        if (body == null) {
-            log.warn("OpenF1 meetings endpoint returned null body for year={}", year);
-            return Collections.emptyList();
-        }
-        return Arrays.asList(body);
+            if (body == null) {
+                log.warn("OpenF1 meetings endpoint returned null body for year={}", year);
+                return Collections.emptyList();
+            }
+            return Arrays.asList(body);
+        });
     }
 
     public List<OpenF1SessionDto> fetchSessions(int year) {
-        OpenF1SessionDto[] body;
-        try {
-            body = restClient
-                .get()
-                .uri(uriBuilder -> uriBuilder.path("/sessions").queryParam("year", year).build())
-                .retrieve()
-                .body(OpenF1SessionDto[].class);
-        } catch (HttpClientErrorException.NotFound ex) {
-            log.warn("OpenF1 sessions endpoint returned 404 for year={}", year);
-            return Collections.emptyList();
-        }
+        return externalApiMetrics.time("openf1", "/sessions", () -> {
+            OpenF1SessionDto[] body;
+            try {
+                body = restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder.path("/sessions").queryParam("year", year).build())
+                    .retrieve()
+                    .body(OpenF1SessionDto[].class);
+            } catch (HttpClientErrorException.NotFound ex) {
+                log.warn("OpenF1 sessions endpoint returned 404 for year={}", year);
+                return Collections.emptyList();
+            }
 
-        if (body == null) {
-            log.warn("OpenF1 sessions endpoint returned null body for year={}", year);
-            return Collections.emptyList();
-        }
-        return Arrays.asList(body);
+            if (body == null) {
+                log.warn("OpenF1 sessions endpoint returned null body for year={}", year);
+                return Collections.emptyList();
+            }
+            return Arrays.asList(body);
+        });
     }
 }

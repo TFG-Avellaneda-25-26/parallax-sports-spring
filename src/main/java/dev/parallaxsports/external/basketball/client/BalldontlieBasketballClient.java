@@ -6,6 +6,7 @@ import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
 import dev.parallaxsports.core.exception.SystemConfigurationException;
 import dev.parallaxsports.core.exception.UpstreamServiceException;
+import dev.parallaxsports.core.metrics.ExternalApiMetrics;
 import dev.parallaxsports.external.basketball.dto.BalldontlieEnvelopeDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieGameDto;
 import dev.parallaxsports.external.basketball.dto.BalldontlieTeamDto;
@@ -32,6 +33,7 @@ public class BalldontlieBasketballClient {
     private final RestClient.Builder restClientBuilder;
     private final ExternalApiProperties externalApiProperties;
     private final ObjectMapper objectMapper;
+    private final ExternalApiMetrics externalApiMetrics;
     private RestClient restClient;
 
     @PostConstruct
@@ -84,27 +86,29 @@ public class BalldontlieBasketballClient {
 
         String fullPath = "/" + league.getApiPathPrefix() + path;
 
-        try {
-            String rawBody = restClient
-                .get()
-                .uri(uriBuilder -> {
-                    var builder = uriBuilder.path(fullPath);
-                    queryParams.forEach(builder::queryParam);
-                    return builder.build();
-                })
-                .header(HttpHeaders.AUTHORIZATION, apiKey)
-                .header(HttpHeaders.ACCEPT, "application/json")
-                .retrieve()
-                .body(String.class);
+        return externalApiMetrics.time("balldontlie", path, () -> {
+            try {
+                String rawBody = restClient
+                    .get()
+                    .uri(uriBuilder -> {
+                        var builder = uriBuilder.path(fullPath);
+                        queryParams.forEach(builder::queryParam);
+                        return builder.build();
+                    })
+                    .header(HttpHeaders.AUTHORIZATION, apiKey)
+                    .header(HttpHeaders.ACCEPT, "application/json")
+                    .retrieve()
+                    .body(String.class);
 
-            if (rawBody == null || rawBody.isBlank()) {
-                return new BalldontlieEnvelopeDto<>(List.of(), null);
+                if (rawBody == null || rawBody.isBlank()) {
+                    return new BalldontlieEnvelopeDto<>(List.of(), null);
+                }
+                return objectMapper.readValue(rawBody, type);
+            } catch (IOException ex) {
+                throw new UpstreamServiceException("balldontlie response parsing failed", ex);
+            } catch (RestClientException ex) {
+                throw new UpstreamServiceException("balldontlie request failed", ex);
             }
-            return objectMapper.readValue(rawBody, type);
-        } catch (IOException ex) {
-            throw new UpstreamServiceException("balldontlie response parsing failed", ex);
-        } catch (RestClientException ex) {
-            throw new UpstreamServiceException("balldontlie request failed", ex);
-        }
+        });
     }
 }
