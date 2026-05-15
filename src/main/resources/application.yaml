@@ -19,6 +19,9 @@ spring:
     name: parallax-sports-api
   jpa:
     open-in-view: false
+    properties:
+      hibernate:
+        generate_statistics: true
   security:
     oauth2:
       client:
@@ -68,6 +71,13 @@ app:
     http-fallback-enabled: false
     ktor-base-url:
     ktor-api-key:
+  loadtest:
+    docker-host: unix:///var/run/docker.sock
+    k6-image: grafana/k6:latest
+    network: stack
+    scripts-volume: /opt/stack/loadtests
+    prom-rw-url: http://prometheus:9090/api/v1/write
+    max-concurrent: 2
 
 springdoc:
   api-docs:
@@ -88,3 +98,12 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        alerts.pipeline.latency: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+  tracing:
+    sampling:
+      probability: 1.0

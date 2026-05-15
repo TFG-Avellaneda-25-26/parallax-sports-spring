@@ -1,6 +1,8 @@
 package dev.parallaxsports.notification.service;
 
+import dev.parallaxsports.audit.service.AuditService;
 import dev.parallaxsports.core.config.properties.AlertProperties;
+import dev.parallaxsports.core.metrics.AlertMetrics;
 import dev.parallaxsports.notification.discord.service.DiscordRouting;
 import dev.parallaxsports.notification.discord.service.DiscordRoutingResolver;
 import dev.parallaxsports.sport.model.Event;
@@ -11,6 +13,7 @@ import dev.parallaxsports.notification.repository.UserEventAlertRepository;
 import dev.parallaxsports.notification.service.policy.AlertRetryPolicy;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.repository.UserRepository;
+import io.micrometer.core.annotation.Timed;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -55,6 +58,8 @@ public class UserEventAlertDispatchScheduler {
     private final AlertRetryPolicy retryPolicy;
     private final AlertProperties alertProperties;
     private final DiscordRoutingResolver discordRoutingResolver;
+    private final AuditService auditService;
+    private final AlertMetrics alertMetrics;
 
     /**
         * Dispatches currently due alerts to notification transport.
@@ -63,6 +68,7 @@ public class UserEventAlertDispatchScheduler {
      */
     @Scheduled(cron = "${app.alerts.dispatch-cron:0 * * * * *}", zone = "${app.external-sync.zone-id:UTC}")
     @Transactional
+    @Timed(value = "scheduled_job_seconds", extraTags = {"job", "alert-dispatch"}, histogram = true, percentiles = {0.5, 0.95, 0.99})
     public void dispatchDueAlerts() {
         if (!alertProperties.isDispatchEnabled()) {
             return;
@@ -105,6 +111,10 @@ public class UserEventAlertDispatchScheduler {
                                 alert.getUserId(),
                                 routing.unroutableReason()
                             );
+                            auditService.record("ALERT_FAILED_PERMANENT", alert.getUserId(),
+                                "user_event_alert", alert.getId(),
+                                Map.of("reason", "routing", "channel", alert.getChannel(),
+                                    "errorCode", String.valueOf(routing.unroutableReason())));
                             continue;
                         }
                     }
@@ -112,6 +122,11 @@ public class UserEventAlertDispatchScheduler {
                     String streamMessageId = alertStreamPublisher.publish(streamName, alert, event, user, renderHash, routing);
                     alert.setStreamMessageId(streamMessageId);
                     queuedCount++;
+                    auditService.record("ALERT_QUEUED", alert.getUserId(),
+                        "user_event_alert", alert.getId(),
+                        Map.of("streamName", streamName, "streamMessageId", String.valueOf(streamMessageId),
+                            "channel", alert.getChannel()));
+                    alertMetrics.queued(alert.getChannel());
                 } catch (Exception ex) {
                     if (tryHttpFallbackDispatch(alert, now, ex)) {
                         queuedCount++;
@@ -129,6 +144,12 @@ public class UserEventAlertDispatchScheduler {
                         alert.getChannel(),
                         ex.getMessage()
                     );
+                    auditService.record("ALERT_FAILED_RETRYABLE", alert.getUserId(),
+                        "user_event_alert", alert.getId(),
+                        Map.of("channel", alert.getChannel(),
+                            "attempts", alert.getAttempts(),
+                            "nextRetryAt", String.valueOf(alert.getNextRetryAtUtc()),
+                            "errorMessage", String.valueOf(ex.getMessage())));
                 }
             }
 

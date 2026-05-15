@@ -1,5 +1,6 @@
 package dev.parallaxsports.user.service;
 
+import dev.parallaxsports.audit.annotation.Audited;
 import dev.parallaxsports.auth.model.TokenType;
 import dev.parallaxsports.auth.service.JwtTokenProvider;
 import dev.parallaxsports.auth.service.RefreshTokenService;
@@ -80,6 +81,7 @@ public class UserService {
     }
 
     @Transactional
+    @Audited(action = "USER_EMAIL_CHANGED", entityType = "user")
     public void updateEmail(String email, String newEmail, HttpServletResponse response) {
         User user = getuser(email);
 
@@ -107,6 +109,7 @@ public class UserService {
     }
 
     @Transactional
+    @Audited(action = "USER_PASSWORD_CHANGED", entityType = "user", includeArgs = false)
     public void updatePassword(String email, String password) {
         User user = getuser(email);
 
@@ -115,6 +118,7 @@ public class UserService {
     }
 
     @Transactional
+    @Audited(action = "USER_DISPLAY_NAME_CHANGED", entityType = "user")
     public void updateDisplayName(String email, String displayName) {
         User user = getuser(email);
 
@@ -123,6 +127,7 @@ public class UserService {
     }
 
     @Transactional
+    @Audited(action = "USER_IDENTITY_DISCONNECTED", entityType = "user_identity")
     public void disconnectIdentity(String email, Long identityId) {
         User user = getuser(email);
 
@@ -131,6 +136,7 @@ public class UserService {
     }
 
     @Transactional
+    @Audited(action = "USER_ACCOUNT_DELETED", entityType = "user")
     public void deleteAccount(String email, HttpServletResponse response) {
         User user = getuser(email);
 

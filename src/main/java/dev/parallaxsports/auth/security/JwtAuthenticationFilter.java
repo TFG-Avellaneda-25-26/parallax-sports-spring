@@ -2,6 +2,7 @@ package dev.parallaxsports.auth.security;
 
 import dev.parallaxsports.auth.service.JwtTokenProvider;
 import dev.parallaxsports.auth.service.RefreshTokenService;
+import dev.parallaxsports.core.metrics.AuthMetrics;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -26,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private final JwtTokenProvider jwtTokenProvider;
 	private final UserDetailsServiceImpl userDetailsService;
 	private final RefreshTokenService refreshTokenService;
+	private final AuthMetrics authMetrics;
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -49,6 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 					String jti = claims.getId();
 					if (refreshTokenService.isAccessTokenBlacklisted(jti)) {
 						log.warn("Blacklisted access token rejected jti='{}' uri='{}'", jti, request.getRequestURI());
+						authMetrics.jwtValidationFailure("blacklisted_access");
 					} else {
 						UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
 								userDetails,
@@ -62,6 +65,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			}
 		} catch (JwtException | IllegalArgumentException ex) {
 			log.warn("JWT validation failed uri='{}': {}", request.getRequestURI(), ex.getMessage());
+			authMetrics.jwtValidationFailure("parse_error");
 		}
 
 		filterChain.doFilter(request, response);

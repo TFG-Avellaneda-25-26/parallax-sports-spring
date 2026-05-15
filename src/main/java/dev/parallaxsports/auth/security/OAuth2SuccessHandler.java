@@ -1,8 +1,10 @@
 package dev.parallaxsports.auth.security;
 
+import dev.parallaxsports.audit.service.AuditService;
 import dev.parallaxsports.auth.model.TokenType;
 import dev.parallaxsports.auth.service.JwtTokenProvider;
 import dev.parallaxsports.auth.service.RefreshTokenService;
+import dev.parallaxsports.core.metrics.AuthMetrics;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
@@ -18,6 +20,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -27,6 +30,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
+    private final AuditService auditService;
+    private final AuthMetrics authMetrics;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -60,6 +65,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         refreshTokenService.addTokenCookie(response, TokenType.REFRESH_TOKEN, refreshToken);
         refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, accessToken);
+
+        String provider = authentication instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken token
+            ? token.getAuthorizedClientRegistrationId()
+            : "unknown";
+        authMetrics.oauthLogin(provider);
+        auditService.record("OAUTH_LOGIN", user.getId(), "user", user.getId(), Map.of("provider", provider));
 
         getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/dashboard");
     }

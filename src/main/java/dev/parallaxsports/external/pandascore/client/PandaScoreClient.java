@@ -1,6 +1,7 @@
 package dev.parallaxsports.external.pandascore.client;
 
 import dev.parallaxsports.core.config.properties.ExternalApiProperties;
+import dev.parallaxsports.core.metrics.ExternalApiMetrics;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchDto;
 import dev.parallaxsports.external.pandascore.dto.PandaScoreTournamentDto;
@@ -23,6 +24,7 @@ public class PandaScoreClient {
 
     private final RestClient.Builder restClientBuilder;
     private final ExternalApiProperties externalApiProperties;
+    private final ExternalApiMetrics externalApiMetrics;
 
     // Mapeo de videojuegos a sus prefijos en PandaScore
     private static final Map<String, String> VIDEOGAME_PREFIXES = Map.of(
@@ -33,6 +35,11 @@ public class PandaScoreClient {
             "overwatch", "/ow");
 
     public List<PandaScoreMatchDto> fetchMatches(String videogame, int page, int perPage) {
+        return externalApiMetrics.time("pandascore", "/" + videogame + "/matches",
+            () -> fetchMatchesInternal(videogame, page, perPage));
+    }
+
+    private List<PandaScoreMatchDto> fetchMatchesInternal(String videogame, int page, int perPage) {
         String apiKey = externalApiProperties.getPandascoreApiKey();
 
         if (apiKey == null || apiKey.isBlank()) {
@@ -163,6 +170,10 @@ public class PandaScoreClient {
     }
 
     public PandaScoreLeagueDto fetchLeague(Long leagueId) {
+        return externalApiMetrics.time("pandascore", "/leagues/{id}", () -> fetchLeagueInternal(leagueId));
+    }
+
+    private PandaScoreLeagueDto fetchLeagueInternal(Long leagueId) {
         String apiKey = externalApiProperties.getPandascoreApiKey();
         if (leagueId == null) {
             return null;
@@ -229,6 +240,10 @@ public class PandaScoreClient {
     }
 
     public PandaScoreTournamentDto fetchTournament(Long tournamentId) {
+        return externalApiMetrics.time("pandascore", "/tournaments/{id}", () -> fetchTournamentInternal(tournamentId));
+    }
+
+    private PandaScoreTournamentDto fetchTournamentInternal(Long tournamentId) {
         if (tournamentId == null) {
             return null;
         }
