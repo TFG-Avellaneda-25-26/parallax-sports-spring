@@ -1,5 +1,6 @@
 package dev.parallaxsports.auth.service;
 
+import dev.parallaxsports.audit.service.AuditService;
 import dev.parallaxsports.auth.dto.AuthResponse;
 import dev.parallaxsports.auth.dto.LoginRequest;
 import dev.parallaxsports.auth.dto.RegisterRequest;
@@ -8,6 +9,7 @@ import dev.parallaxsports.auth.security.UserDetailsServiceImpl;
 import dev.parallaxsports.core.exception.DuplicateResourceException;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
 import dev.parallaxsports.core.exception.UnauthorizedException;
+import dev.parallaxsports.core.metrics.AuthMetrics;
 import dev.parallaxsports.user.model.User;
 import dev.parallaxsports.user.model.UserRole;
 import dev.parallaxsports.user.repository.UserRepository;
@@ -15,6 +17,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -36,6 +39,8 @@ public class AuthService {
 	private final EmailVerificationService emailVerificationService;
 	private final RefreshTokenService refreshTokenService;
 	private final UserDetailsServiceImpl userDetailsService;
+	private final AuthMetrics authMetrics;
+	private final AuditService auditService;
 
 	public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
 		if (userRepository.existsByEmail(request.email())) {
@@ -52,6 +57,9 @@ public class AuthService {
 
 		User saved = userRepository.save(user);
 		log.info("Registered new user '{}' with role {}", saved.getEmail(), saved.getRole());
+		authMetrics.register();
+		auditService.record("USER_REGISTERED", saved.getId(), "user", saved.getId(),
+			Map.of("email", saved.getEmail(), "role", saved.getRole().name()));
 
 		try {
 			emailVerificationService.createAndSendVerification(saved);
@@ -68,15 +76,25 @@ public class AuthService {
 				new UsernamePasswordAuthenticationToken(request.email(), request.password())
 			);
 		} catch (AuthenticationException ex) {
+			authMetrics.loginFailure("invalid_credentials");
+			auditService.record("LOGIN_FAILED", null, "user", null,
+				Map.of("email", request.email(), "reason", "invalid_credentials"));
 			throw new UnauthorizedException("Invalid credentials");
 		}
 
 		User user = userRepository.findByEmail(request.email())
-			.orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+			.orElseThrow(() -> {
+				authMetrics.loginFailure("user_not_found");
+				auditService.record("LOGIN_FAILED", null, "user", null,
+					Map.of("email", request.email(), "reason", "user_not_found"));
+				return new UnauthorizedException("Invalid credentials");
+			});
 
 		user.setLastLoginAt(OffsetDateTime.now());
 		User saved = userRepository.save(user);
 		log.info("User '{}' logged in", saved.getEmail());
+		authMetrics.loginSuccess();
+		auditService.record("LOGIN_SUCCESS", saved.getId(), "user", saved.getId(), null);
 
 		return issueAndSetCookies(saved, response);
 	}
@@ -87,6 +105,7 @@ public class AuthService {
 			claims = jwtTokenProvider.parseClaims(refreshToken);
 		} catch (JwtException | IllegalArgumentException ex) {
 			log.warn("Refresh token parse failed: {}", ex.getMessage());
+			authMetrics.refresh("invalid_token");
 			throw new UnauthorizedException("Invalid refresh token");
 		}
 
@@ -94,12 +113,16 @@ public class AuthService {
 		String subject = claims.getSubject();
 
 		User user = userRepository.findByEmail(subject)
-			.orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+			.orElseThrow(() -> {
+				authMetrics.refresh("user_not_found");
+				return new UnauthorizedException("Invalid refresh token");
+			});
 
 		UserDetails userDetails = userDetailsService.loadUserByUsername(subject);
 
 		if (!jwtTokenProvider.isTokenValid(claims, userDetails, "refresh")) {
 			log.warn("Refresh token rejected by validation subject='{}'", subject);
+			authMetrics.refresh("invalid_token");
 			throw new UnauthorizedException("Invalid refresh token");
 		}
 
@@ -109,6 +132,9 @@ public class AuthService {
 			// Valid JWT but not in DB — possible refresh token reuse attack.
 			log.warn("Refresh token not found in DB for subject='{}', possible reuse attack — revoking all tokens", subject);
 			refreshTokenService.revokeAllByUser(user.getId());
+			authMetrics.refresh("reuse_attack");
+			auditService.record("REFRESH_REUSE_DETECTED", user.getId(), "user", user.getId(),
+				Map.of("jti", jti == null ? "" : jti));
 			throw new UnauthorizedException("Invalid refresh token");
 		}
 
@@ -123,10 +149,13 @@ public class AuthService {
 		refreshTokenService.addTokenCookie(response, TokenType.ACCESS_TOKEN, newAccessToken);
 
 		log.info("Tokens rotated for subject='{}'", user.getEmail());
+		authMetrics.refresh("success");
+		auditService.record("TOKEN_REFRESHED", user.getId(), "user", user.getId(), null);
 		return new AuthResponse(user.getId(), user.isEmailVerified());
 	}
 
 	public void logout(String refreshToken, HttpServletResponse response) {
+		Long actorId = null;
 		if (refreshToken != null && !refreshToken.isBlank()) {
 			try {
 				Claims claims = jwtTokenProvider.parseClaims(refreshToken);
@@ -134,11 +163,15 @@ public class AuthService {
 				if (jti != null) {
 					refreshTokenService.revokeByJti(jti);
 				}
+				actorId = userRepository.findByEmail(claims.getSubject())
+					.map(User::getId).orElse(null);
 			} catch (JwtException | IllegalArgumentException ex) {
 				log.debug("Logout with invalid token (ignored): {}", ex.getMessage());
 			}
 		}
 		refreshTokenService.clearAuthCookies(response);
+		authMetrics.logout();
+		auditService.record("LOGOUT", actorId, "user", actorId, null);
 	}
 
 	public User resolveUserByEmail(String email) {

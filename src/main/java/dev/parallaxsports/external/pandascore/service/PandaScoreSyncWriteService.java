@@ -1,0 +1,331 @@
+package dev.parallaxsports.external.pandascore.service;
+
+import static dev.parallaxsports.external.sync.SyncWriteHelper.nullSafe;
+import static dev.parallaxsports.external.sync.SyncWriteHelper.setIfChanged;
+
+import dev.parallaxsports.external.pandascore.client.PandaScoreClient;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreLeagueDto;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreMatchDto;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreTournamentDto;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreOpponentDto;
+import dev.parallaxsports.external.pandascore.dto.PandaScoreTeamDto;
+import dev.parallaxsports.sport.model.Competition;
+import dev.parallaxsports.sport.model.Event;
+import dev.parallaxsports.sport.model.Sport;
+import dev.parallaxsports.sport.repository.CompetitionRepository;
+import dev.parallaxsports.sport.repository.EventRepository;
+import dev.parallaxsports.sport.repository.SportRepository;
+import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class PandaScoreSyncWriteService {
+
+    private static final String EXTERNAL_PROVIDER = "pandascore";
+
+    private final PandaScoreClient pandaScoreClient;
+    private final SportRepository sportRepository;
+    private final CompetitionRepository competitionRepository;
+    private final EventRepository eventRepository;
+
+    @Transactional
+    public SyncCounters syncMatches(List<PandaScoreMatchDto> matches, String videogame) {
+        int upserted = 0;
+        Map<Long, PandaScoreLeagueDto> leagueCache = new HashMap<>();
+        Map<Long, PandaScoreTournamentDto> tournamentCache = new HashMap<>();
+        Map<String, Integer> tiersFound = new HashMap<>();
+
+        for (PandaScoreMatchDto match : matches) {
+            if (match == null || match.id() == null) {
+                continue;
+            }
+
+            PandaScoreLeagueDto enrichedLeague = resolveLeague(match, leagueCache);
+            
+            // Solo procesamos los partidos que pertenezcan a un torneo de tier S o A
+            PandaScoreTournamentDto tournament = match.tournament();
+            if (tournament == null) {
+                tiersFound.merge("null_tournament", 1, Integer::sum);
+                continue;
+            }
+
+            // Enriquecer el torneo si le falta el tier
+            if (tournament.tier() == null && tournament.id() != null) {
+                PandaScoreTournamentDto enrichedTournament = tournamentCache.computeIfAbsent(
+                    tournament.id(), 
+                    pandaScoreClient::fetchTournament
+                );
+                if (enrichedTournament != null) {
+                    tournament = enrichedTournament;
+                }
+            }
+
+            if (tournament.tier() == null) {
+                tiersFound.merge("null_tier", 1, Integer::sum);
+                continue;
+            }
+
+            String tier = tournament.tier().toLowerCase();
+            tiersFound.merge(tier, 1, Integer::sum);
+            log.info("Match {} (videogame: {}) has tournament tier: {}", match.id(), videogame, tier);
+            
+            if (!tier.equals("s") && !tier.equals("a")) {
+                continue;
+            }
+
+            if (upsertMatch(match, videogame, leagueCache, enrichedLeague)) {
+                upserted++;
+            }
+        }
+
+        log.info("PandaScore sync completed: matches={}", upserted);
+        return new SyncCounters(upserted, tiersFound);
+    }
+
+    private boolean upsertMatch(PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache, PandaScoreLeagueDto enrichedLeague) {
+        Sport sport = ensureSport(videogame);
+        Competition competition = ensureCompetition(sport, dto, videogame, leagueCache, enrichedLeague);
+        String externalId = externalId(dto);
+        Event event = eventRepository.findByExternalProviderAndExternalId(EXTERNAL_PROVIDER, externalId).orElse(null);
+        boolean created = false;
+
+        if (event == null) {
+            event = Event.builder()
+                .sport(sport)
+                .competition(competition)
+                .participantsMode("teams")
+                .externalProvider(EXTERNAL_PROVIDER)
+                .externalId(externalId)
+                .build();
+            created = true;
+        }
+
+        boolean changed = false;
+        changed |= setIfChanged(event.getSport(), sport, event::setSport);
+        changed |= setIfChanged(event.getCompetition(), competition, event::setCompetition);
+        changed |= setIfChanged(event.getEventType(), "match", event::setEventType);
+        changed |= setIfChanged(event.getName(), resolveName(dto, competition), event::setName);
+        changed |= setIfChanged(event.getStage(), resolveStage(dto), event::setStage);
+        changed |= setIfChanged(event.getStatus(), normalizeStatus(dto.status()), event::setStatus);
+        changed |= setIfChanged(event.getStartTimeUtc(), resolveStartTime(dto.beginAt()), event::setStartTimeUtc);
+        changed |= setIfChanged(event.getEndTimeUtc(), resolveEndTime(dto.endAt()), event::setEndTimeUtc);
+        changed |= setIfChanged(event.getParticipantsMode(), "teams", event::setParticipantsMode);
+        changed |= setIfChanged(event.getExternalProvider(), EXTERNAL_PROVIDER, event::setExternalProvider);
+        changed |= setIfChanged(event.getExternalId(), externalId, event::setExternalId);
+
+        if (!created && !changed) {
+            return false;
+        }
+
+        eventRepository.save(event);
+        return true;
+    }
+
+    private Sport ensureSport(String videogame) {
+        String key = nullSafe(videogame, "pandascore");
+        return sportRepository.findByKey(key).orElseGet(() ->
+            sportRepository.save(
+                Sport.builder()
+                    .key(key)
+                    .name(resolveSportName(key))
+                    .build()
+            )
+        );
+    }
+
+    private Competition ensureCompetition(Sport sport, PandaScoreMatchDto dto, String videogame, Map<Long, PandaScoreLeagueDto> leagueCache, PandaScoreLeagueDto league) {
+        String competitionName = resolveCompetitionName(league, videogame);
+        String region = resolveLeagueRegion(league);
+        String country = resolveLeagueCountry(league);
+        Competition competition = competitionRepository.findBySportIdAndName(sport.getId(), competitionName).orElse(null);
+        if (competition != null) {
+            boolean changed = false;
+            changed |= setIfChanged(competition.getKind(), "league", competition::setKind);
+            changed |= setIfPresent(competition.getRegion(), region, competition::setRegion);
+            changed |= setIfPresent(competition.getCountry(), country, competition::setCountry);
+            if (!changed) {
+                return competition;
+            }
+        } else {
+            Competition.CompetitionBuilder builder = Competition.builder()
+                .sport(sport)
+                .name(competitionName)
+                .kind("league");
+            if (region != null) {
+                builder.region(region);
+            }
+            if (country != null) {
+                builder.country(country);
+            }
+            competition = builder.build();
+        }
+
+        return competitionRepository.save(competition);
+    }
+
+    private boolean setIfPresent(String current, String next, Consumer<String> setter) {
+        if (next == null || next.isBlank()) {
+            return false;
+        }
+        return setIfChanged(current, next, setter);
+    }
+
+    private PandaScoreLeagueDto resolveLeague(PandaScoreMatchDto dto, Map<Long, PandaScoreLeagueDto> leagueCache) {
+        PandaScoreLeagueDto league = dto.league();
+        if (!needsLeagueEnrichment(league)) {
+            return league;
+        }
+
+        if (dto.leagueId() == null) {
+            return league;
+        }
+
+        PandaScoreLeagueDto enriched = leagueCache.computeIfAbsent(dto.leagueId(), pandaScoreClient::fetchLeague);
+        return enriched != null ? enriched : league;
+    }
+
+    private boolean needsLeagueEnrichment(PandaScoreLeagueDto league) {
+        return league == null
+            || league.name() == null || league.name().isBlank()
+            || league.slug() == null || league.slug().isBlank()
+            || league.region() == null || league.region().isBlank()
+            || league.country() == null || league.country().isBlank();
+    }
+
+    private String resolveLeagueRegion(PandaScoreLeagueDto league) {
+        if (league == null || league.region() == null || league.region().isBlank()) {
+            return null;
+        }
+        return league.region();
+    }
+
+    private String resolveLeagueCountry(PandaScoreLeagueDto league) {
+        if (league == null || league.country() == null || league.country().isBlank()) {
+            return null;
+        }
+        return league.country();
+    }
+
+    private String resolveName(PandaScoreMatchDto dto, Competition competition) {
+        if (dto.name() != null && !dto.name().isBlank()) {
+            return dto.name();
+        }
+
+        String opponentName = firstOpponentName(dto.opponents());
+        if (opponentName != null) {
+            return opponentName;
+        }
+
+        return (competition == null ? "PandaScore match" : competition.getName() + " match") + " " + dto.id();
+    }
+
+    private String resolveCompetitionName(PandaScoreLeagueDto league, String videogame) {
+        if (league != null) {
+            if (league.name() != null && !league.name().isBlank()) {
+                return league.name();
+            }
+            if (league.slug() != null && !league.slug().isBlank()) {
+                return league.slug();
+            }
+        }
+        return resolveSportName(nullSafe(videogame, "pandascore"));
+    }
+
+    private String resolveSportName(String key) {
+        return switch (key) {
+            case "league-of-legends" -> "League of Legends";
+            case "valorant" -> "Valorant";
+            case "dota2" -> "Dota 2";
+            case "counter-strike" -> "Counter-Strike";
+            default -> "PandaScore";
+        };
+    }
+
+    private String resolveStage(PandaScoreMatchDto dto) {
+        if (dto.slug() != null && !dto.slug().isBlank()) {
+            return dto.slug();
+        }
+        return null;
+    }
+
+    private String externalId(PandaScoreMatchDto dto) {
+        return "match:" + dto.id();
+    }
+
+    private OffsetDateTime resolveStartTime(String beginAt) {
+        OffsetDateTime parsed = parseDateTime(beginAt);
+        return parsed != null ? parsed : OffsetDateTime.now();
+    }
+
+    private OffsetDateTime resolveEndTime(String endAt) {
+        return parseDateTime(endAt);
+    }
+
+    private String firstOpponentName(PandaScoreOpponentDto[] opponents) {
+        if (opponents == null) {
+            return null;
+        }
+
+        for (PandaScoreOpponentDto opponent : opponents) {
+            if (opponent == null) {
+                continue;
+            }
+            PandaScoreTeamDto team = opponent.opponent();
+            if (team != null && team.name() != null && !team.name().isBlank()) {
+                return team.name();
+            }
+        }
+        return null;
+    }
+
+    private OffsetDateTime parseDateTime(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            return OffsetDateTime.parse(value);
+        } catch (Exception ex) {
+            log.debug("Unable to parse PandaScore date '{}': {}", value, ex.getMessage());
+            return null;
+        }
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "scheduled";
+        }
+
+        String normalized = status.toLowerCase();
+        if (normalized.contains("not_started") || normalized.contains("scheduled") || normalized.contains("pending")) {
+            return "scheduled";
+        }
+        if (normalized.contains("live") || normalized.contains("running") || normalized.contains("ongoing") || normalized.contains("in_progress")) {
+            return "live";
+        }
+        if (normalized.contains("finished") || normalized.contains("complete") || normalized.contains("ended")) {
+            return "finished";
+        }
+        if (normalized.contains("cancel")) {
+            return "cancelled";
+        }
+        if (normalized.contains("postpon") || normalized.contains("delayed")) {
+            return "postponed";
+        }
+        return "scheduled";
+    }
+
+    public record SyncCounters(int matchesUpserted, java.util.Map<String, Integer> tiersFound) {
+    }
+}
+
+

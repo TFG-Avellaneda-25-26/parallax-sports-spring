@@ -1,5 +1,6 @@
 package dev.parallaxsports.external.formula1.controller;
 
+import dev.parallaxsports.audit.annotation.Audited;
 import dev.parallaxsports.sport.formula1.dto.Formula1SyncResponse;
 import dev.parallaxsports.external.formula1.service.Formula1SyncService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ public class Formula1AdminController {
     private final Formula1SyncService formula1SyncService;
 
     @PostMapping("/sync/{year}")
+    @Audited(action = "ADMIN_F1_SYNC_YEAR", entityType = "season")
     public ResponseEntity<Formula1SyncResponse> syncYear(@PathVariable int year) {
         return ResponseEntity.ok(formula1SyncService.syncYear(year));
     }

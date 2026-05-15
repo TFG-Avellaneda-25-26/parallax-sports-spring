@@ -1,5 +1,6 @@
 package dev.parallaxsports.external.basketball.controller;
 
+import dev.parallaxsports.audit.annotation.Audited;
 import dev.parallaxsports.sport.basketball.BasketballLeague;
 import dev.parallaxsports.external.basketball.dto.BasketballSyncResponse;
 import dev.parallaxsports.external.basketball.service.BasketballSyncService;
@@ -20,6 +21,7 @@ public class BasketballAdminController {
     private final BasketballSyncService basketballSyncService;
 
     @PostMapping("/sync")
+    @Audited(action = "ADMIN_BASKETBALL_SYNC")
     public ResponseEntity<BasketballSyncResponse> sync(
         @RequestParam BasketballLeague league,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,

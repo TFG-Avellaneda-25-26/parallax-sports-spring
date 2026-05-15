@@ -87,10 +87,30 @@ public class EventFeedService {
             .map(ee -> ee.getParticipant().getId())
             .distinct()
             .toList();
-        Map<Long, String> participantLogos = loadParticipantLogos(participantIds);
+        Map<Long, String> participantLogos = loadLogosByOwner("participant", participantIds);
+
+        List<Long> sportIds = events.stream()
+            .map(e -> e.getSport().getId())
+            .distinct()
+            .toList();
+        List<Long> competitionIds = events.stream()
+            .map(Event::getCompetition)
+            .filter(Objects::nonNull)
+            .map(Competition::getId)
+            .distinct()
+            .toList();
+        List<Long> venueIds = events.stream()
+            .map(Event::getVenue)
+            .filter(Objects::nonNull)
+            .map(Venue::getId)
+            .distinct()
+            .toList();
+        Map<Long, String> sportLogos = loadLogosByOwner("sport", sportIds);
+        Map<Long, String> competitionLogos = loadLogosByOwner("competition", competitionIds);
+        Map<Long, String> venueLogos = loadLogosByOwner("venue", venueIds);
 
         List<EventResponse> items = events.stream()
-            .map(e -> toEventResponse(e, entriesByEvent, participantLogos))
+            .map(e -> toEventResponse(e, entriesByEvent, participantLogos, sportLogos, competitionLogos, venueLogos))
             .toList();
 
         Long nextCursor = hasMore ? events.getLast().getId() : null;
@@ -105,27 +125,30 @@ public class EventFeedService {
         return feed;
     }
 
-    private Map<Long, String> loadParticipantLogos(List<Long> participantIds) {
-        if (participantIds.isEmpty()) {
+    private Map<Long, String> loadLogosByOwner(String ownerType, List<Long> ownerIds) {
+        if (ownerIds.isEmpty()) {
             return Map.of();
         }
 
         List<MediaAsset> logos = mediaAssetRepository
             .findByOwnerTypeAndOwnerIdInAndAssetTypeOrderByOwnerIdAscIdDesc(
-                "participant", participantIds, "logo"
+                ownerType, ownerIds, "logo"
             );
 
-        Map<Long, String> latestByParticipant = new HashMap<>();
+        Map<Long, String> latestByOwner = new HashMap<>();
         for (MediaAsset logo : logos) {
-            latestByParticipant.putIfAbsent(logo.getOwnerId(), logo.getUrl());
+            latestByOwner.putIfAbsent(logo.getOwnerId(), logo.getUrl());
         }
-        return latestByParticipant;
+        return latestByOwner;
     }
 
     private EventResponse toEventResponse(
         Event event,
         Map<Long, List<EventEntry>> entriesByEvent,
-        Map<Long, String> participantLogos
+        Map<Long, String> participantLogos,
+        Map<Long, String> sportLogos,
+        Map<Long, String> competitionLogos,
+        Map<Long, String> venueLogos
     ) {
         Sport sport = event.getSport();
         Competition competition = event.getCompetition();
@@ -147,6 +170,7 @@ public class EventFeedService {
 
         return new EventResponse(
             event.getId(),
+            event.getParentEvent() != null ? event.getParentEvent().getId() : null,
             sport.getKey(),
             sport.getName(),
             event.getEventType(),
@@ -156,6 +180,9 @@ public class EventFeedService {
             event.getEndTimeUtc(),
             competition != null ? competition.getName() : null,
             venue != null ? venue.getName() : null,
+            sportLogos.get(sport.getId()),
+            competition != null ? competitionLogos.get(competition.getId()) : null,
+            venue != null ? venueLogos.get(venue.getId()) : null,
             participants,
             logos
         );

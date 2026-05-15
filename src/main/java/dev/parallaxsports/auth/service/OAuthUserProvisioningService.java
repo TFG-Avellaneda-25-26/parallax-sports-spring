@@ -1,5 +1,6 @@
 package dev.parallaxsports.auth.service;
 
+import dev.parallaxsports.audit.service.AuditService;
 import dev.parallaxsports.auth.model.AuthProvider;
 import dev.parallaxsports.bot.service.BotPermissionCacheService;
 import dev.parallaxsports.core.exception.ResourceNotFoundException;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ public class OAuthUserProvisioningService {
     private final UserRepository userRepository;
     private final UserIdentityRepository userIdentityRepository;
     private final BotPermissionCacheService botPermissionCacheService;
+    private final AuditService auditService;
 
     @Transactional
     public void provisionUser(OAuth2User oAuth2User, OAuth2UserRequest userRequest) {
@@ -44,15 +47,18 @@ public class OAuthUserProvisioningService {
         if (identity == null) {
             log.info("New identity {} detected for email: {}", registrationId, email);
 
+            boolean wasNewUser = false;
             user = userRepository.findByEmail(email)
-                    .orElseGet(() -> {
-                        log.info("Creating new User for email: {}", email);
-                        return User.builder()
-                                .email(email)
-                                .displayName(username)
-                                .emailVerified(true)
-                                .build();
-                    });
+                    .orElse(null);
+            if (user == null) {
+                log.info("Creating new User for email: {}", email);
+                user = User.builder()
+                        .email(email)
+                        .displayName(username)
+                        .emailVerified(true)
+                        .build();
+                wasNewUser = true;
+            }
 
             if (user.getId() == null) {
                 user = userRepository.save(user);
@@ -71,6 +77,12 @@ public class OAuthUserProvisioningService {
             if (user.getIdentities() != null) {
                 user.addIdentity(newIdentity);
             }
+
+            auditService.record(
+                wasNewUser ? "OAUTH_USER_PROVISIONED" : "OAUTH_IDENTITY_LINKED",
+                user.getId(), "user", user.getId(),
+                Map.of("provider", registrationId, "providerSubject", subject, "email", String.valueOf(email))
+            );
         } else {
             user = identity.getUser();
             identity.setProviderUsername(username);
@@ -95,5 +107,7 @@ public class OAuthUserProvisioningService {
         botPermissionCacheService.evict(provider, providerSubject);
         log.info("Unlinked identity provider='{}' subject='{}' for user '{}'",
             provider, providerSubject, requestingUser.getEmail());
+        auditService.record("OAUTH_IDENTITY_UNLINKED", requestingUser.getId(), "user_identity", identity.getId(),
+            Map.of("provider", provider, "providerSubject", providerSubject));
     }
 }

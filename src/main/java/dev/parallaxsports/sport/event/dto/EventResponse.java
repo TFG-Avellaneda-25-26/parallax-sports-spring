@@ -5,6 +5,7 @@ import java.util.List;
 
 public record EventResponse(
     Long id,
+    Long parentEventId,
     String sportKey,
     String sportName,
     String eventType,
@@ -14,6 +15,9 @@ public record EventResponse(
     OffsetDateTime endTimeUtc,
     String competitionName,
     String venueName,
+    String sportIconUrl,
+    String competitionLogoUrl,
+    String venueImageUrl,
     List<ParticipantEntry> participants,
     List<String> logos
 ) {

@@ -1,6 +1,8 @@
 package dev.parallaxsports.notification.service;
 
+import dev.parallaxsports.audit.service.AuditService;
 import dev.parallaxsports.core.config.properties.AlertProperties;
+import dev.parallaxsports.core.metrics.AlertMetrics;
 import dev.parallaxsports.follow.model.UserSportFollow;
 import dev.parallaxsports.follow.model.UserSportNotificationChannel;
 import dev.parallaxsports.follow.model.UserSportSettings;
@@ -47,6 +49,8 @@ public class UserEventAlertGenerationService {
     private final UserEventAlertRepository userEventAlertRepository;
     private final UserRepository userRepository;
     private final AlertProperties alertProperties;
+    private final AuditService auditService;
+    private final AlertMetrics alertMetrics;
 
     // CAREFUL DON'T CHANGE PROPAGATION, REQUIRED BREAKS IT!! 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -260,7 +264,15 @@ public class UserEventAlertGenerationService {
                     .status(computedStatus)
                     .artifactRequired(artifactRequired)
                     .build();
-                userEventAlertRepository.save(alert);
+                UserEventAlert saved = userEventAlertRepository.save(alert);
+                auditService.record("ALERT_CREATED", userId, "user_event_alert", saved.getId(),
+                    Map.of(
+                        "eventId", eventId,
+                        "channel", channel,
+                        "sendAtUtc", sendAtUtc.toString(),
+                        "leadTimeMinutes", leadTimeMinutes
+                    ));
+                alertMetrics.created(channel);
             });
     }
 

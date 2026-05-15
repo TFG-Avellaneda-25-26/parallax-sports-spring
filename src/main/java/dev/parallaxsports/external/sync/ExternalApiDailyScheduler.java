@@ -2,6 +2,7 @@ package dev.parallaxsports.external.sync;
 
 import dev.parallaxsports.core.config.properties.ExternalSyncProperties;
 import dev.parallaxsports.sport.event.service.EventFeedService;
+import io.micrometer.core.annotation.Timed;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -32,10 +33,10 @@ public class ExternalApiDailyScheduler {
 
         /**
          * Triggers daily external synchronization using the configured cron schedule.
-         *
-         * @return no value; side effect is provider synchronization and structured logs per provider
+         * Side effect is provider synchronization and structured logs per provider.
          */
     @Scheduled(cron = "${app.external-sync.daily-cron:0 30 0 * * *}", zone = "${app.external-sync.zone-id:UTC}")
+    @Timed(value = "scheduled_job_seconds", extraTags = {"job", "daily-sync"}, histogram = true, percentiles = {0.5, 0.95, 0.99})
     public void runDailySync() {
         executeDailySync();
     }
