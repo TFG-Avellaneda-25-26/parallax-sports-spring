@@ -103,14 +103,32 @@ public class SecurityConfig {
     }
     
     // https://docs.spring.io/spring-framework/reference/web/webmvc-cors.html
+    //
+    // Uses a dedicated CORS property so `app.frontend-url` can stay a single
+    // canonical URL for redirect construction (OAuth2SuccessHandler, etc.).
+    // Defaults to app.frontend-url when app.cors.allowed-origins is unset, so
+    // existing deployments don't need a config change.
+    //
+    // Example .env that allows the deployed Angular AND a local ng-serve:
+    //   APP_FRONTEND_URL=http://192.168.1.29
+    //   APP_CORS_ALLOWED_ORIGINS=http://192.168.1.29,http://localhost:4200
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(
+        @Value("${app.cors.allowed-origins:${app.frontend-url}}") String corsAllowedOrigins
+    ) {
+        List<String> origins = java.util.Arrays.stream(corsAllowedOrigins.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
+
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(frontendUrl));
+        config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+
+        log.info("CORS allowed origins: {}", origins);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
