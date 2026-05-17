@@ -103,14 +103,23 @@ public class SecurityConfig {
     }
     
     // https://docs.spring.io/spring-framework/reference/web/webmvc-cors.html
+    // Accept a comma-separated list so the same Spring instance serves both
+    // the deployed Angular (http://lxc-ip/) and a dev ng-serve (http://localhost:4200).
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        List<String> origins = java.util.Arrays.stream(frontendUrl.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
+
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(frontendUrl));
+        config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+
+        log.info("CORS allowed origins: {}", origins);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
