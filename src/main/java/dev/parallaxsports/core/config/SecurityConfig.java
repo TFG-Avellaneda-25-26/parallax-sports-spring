@@ -103,11 +103,20 @@ public class SecurityConfig {
     }
     
     // https://docs.spring.io/spring-framework/reference/web/webmvc-cors.html
-    // Accept a comma-separated list so the same Spring instance serves both
-    // the deployed Angular (http://lxc-ip/) and a dev ng-serve (http://localhost:4200).
+    //
+    // Uses a dedicated CORS property so `app.frontend-url` can stay a single
+    // canonical URL for redirect construction (OAuth2SuccessHandler, etc.).
+    // Defaults to app.frontend-url when app.cors.allowed-origins is unset, so
+    // existing deployments don't need a config change.
+    //
+    // Example .env that allows the deployed Angular AND a local ng-serve:
+    //   APP_FRONTEND_URL=http://192.168.1.29
+    //   APP_CORS_ALLOWED_ORIGINS=http://192.168.1.29,http://localhost:4200
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        List<String> origins = java.util.Arrays.stream(frontendUrl.split(","))
+    public CorsConfigurationSource corsConfigurationSource(
+        @Value("${app.cors.allowed-origins:${app.frontend-url}}") String corsAllowedOrigins
+    ) {
+        List<String> origins = java.util.Arrays.stream(corsAllowedOrigins.split(","))
             .map(String::trim)
             .filter(s -> !s.isEmpty())
             .toList();
