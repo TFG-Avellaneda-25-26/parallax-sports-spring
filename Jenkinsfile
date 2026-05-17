@@ -64,10 +64,13 @@ pipeline {
 
         stage('Deploy') {
             steps {
+                // --force-recreate so even if Compose thinks the service spec
+                // is unchanged, the freshly-pulled image gets used. Belt and
+                // suspenders against a class of "my change didn't deploy" bugs.
                 sh """
                     cd ${STACK_PATH}
                     docker compose pull spring-boot || true
-                    docker compose up -d --no-deps spring-boot
+                    docker compose --profile apps up -d --no-deps --force-recreate spring-boot
                 """
             }
         }
