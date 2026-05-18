@@ -2,12 +2,16 @@ package dev.parallaxsports.auth.controller;
 
 import dev.parallaxsports.auth.dto.AuthResponse;
 import dev.parallaxsports.auth.dto.EmailVerificationResponse;
+import dev.parallaxsports.auth.dto.ForgotPasswordRequest;
+import dev.parallaxsports.auth.dto.ForgotPasswordResetRequest;
+import dev.parallaxsports.auth.dto.ForgotPasswordVerifyRequest;
 import dev.parallaxsports.auth.dto.LoginRequest;
 import dev.parallaxsports.auth.dto.RefreshTokenRequest;
 import dev.parallaxsports.auth.dto.RegisterRequest;
 import dev.parallaxsports.auth.dto.VerifyEmailRequest;
 import dev.parallaxsports.auth.service.AuthService;
 import dev.parallaxsports.auth.service.EmailVerificationService;
+import dev.parallaxsports.auth.service.ForgotPasswordService;
 import dev.parallaxsports.auth.service.OAuthUserProvisioningService;
 import dev.parallaxsports.auth.service.RefreshTokenService;
 import dev.parallaxsports.core.exception.UnauthorizedException;
@@ -34,6 +38,7 @@ public class AuthController {
 	private final AuthService authService;
 	private final OAuthUserProvisioningService oAuthUserProvisioningService;
 	private final EmailVerificationService emailVerificationService;
+	private final ForgotPasswordService forgotPasswordService;
 
 	@PostMapping("/register")
 	public ResponseEntity<AuthResponse> register(
@@ -94,6 +99,30 @@ public class AuthController {
 		User user = authService.resolveUserByEmail(userDetails.getUsername());
 		emailVerificationService.resendVerification(user);
 		return ResponseEntity.ok(new EmailVerificationResponse("Verification email sent"));
+	}
+
+	@PostMapping("/forgot-password/request")
+	public ResponseEntity<Void> requestForgotPassword(
+		@Valid @RequestBody ForgotPasswordRequest request
+	) {
+		forgotPasswordService.requestForgotPassword(request.email());
+		return ResponseEntity.ok().build();
+	}
+
+	@PostMapping("/forgot-password/verify")
+	public ResponseEntity<Void> verifyForgotPassword(
+		@Valid @RequestBody ForgotPasswordVerifyRequest request
+	) {
+		forgotPasswordService.verifyCode(request.email(), request.code());
+		return ResponseEntity.ok().build();
+	}
+
+	@PostMapping("/forgot-password/reset")
+	public ResponseEntity<Void> resetForgotPassword(
+		@Valid @RequestBody ForgotPasswordResetRequest request
+	) {
+		forgotPasswordService.resetPassword(request.email(), request.code(), request.password());
+		return ResponseEntity.ok().build();
 	}
 
 	@DeleteMapping("/identities/{provider}/{providerSubject}")
